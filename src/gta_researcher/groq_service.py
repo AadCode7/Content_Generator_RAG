@@ -107,6 +107,7 @@ ARTICLE TEXT:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.2,
+            reasoning_effort="low" if self.model == "openai/gpt-oss-20b" else None,
             max_completion_tokens=2200,
             response_format={"type": "json_object"},
         )
@@ -158,6 +159,7 @@ Never present speculation as confirmed fact. Do not invent gameplay footage or m
                 {"role": "user", "content": prompt},
             ],
             temperature=0.45,
+            reasoning_effort="low" if self.model == "openai/gpt-oss-20b" else None,
             max_completion_tokens=1000,
             response_format={"type": "json_object"},
         )

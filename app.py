@@ -63,7 +63,7 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
             f"Novelty {item.get('novelty_score', 5)}/10 · "
             f"Shareability {item.get('shareability_score', 5)}/10 · "
             f"Visual potential {item.get('visual_potential_score', 5)}/10 · "
-            f"Research confidence {item.get('confidence', 50)}%"
+            f"AI-estimated confidence {item.get('confidence', 50)}%"
         )
         if item.get("evidence_type"):
             st.caption(f"Source classification: {item['evidence_type']}")
