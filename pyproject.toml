@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gta-vi-news-researcher"
+version = "0.1.0"
+description = "A source-grounded GTA VI news researcher and short-form video idea generator."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.42.0,<2.0.0",
+    "groq>=0.31.0,<1.0.0",
+    "requests>=2.32.3,<3.0.0",
+    "feedparser>=6.0.11,<7.0.0",
+    "trafilatura>=2.0.0,<3.0.0",
+    "beautifulsoup4>=4.12.3,<5.0.0",
+    "python-dotenv>=1.0.1,<2.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
