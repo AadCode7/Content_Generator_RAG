@@ -76,6 +76,12 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
         hook_key = f"hook_{discovery_id}"
         script_key = f"script_{discovery_id}"
         visual_key = f"visual_{discovery_id}"
+        pending_key = f"pending_generated_{discovery_id}"
+        pending_generated = st.session_state.pop(pending_key, None)
+        if pending_generated:
+            st.session_state[hook_key] = pending_generated["hook"]
+            st.session_state[script_key] = pending_generated["script"]
+            st.session_state[visual_key] = pending_generated["visual_notes"]
         st.text_input("Video hook", value=item.get("hook", ""), key=hook_key)
         st.text_area(
             "Voiceover script",
@@ -123,9 +129,7 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
                     generated["script"],
                     generated["visual_notes"],
                 )
-                st.session_state[hook_key] = generated["hook"]
-                st.session_state[script_key] = generated["script"]
-                st.session_state[visual_key] = generated["visual_notes"]
+                st.session_state[pending_key] = generated
                 st.success("New script generated.")
                 st.rerun()
             except Exception as exc:
