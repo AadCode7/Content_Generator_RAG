@@ -12,7 +12,7 @@ Build a local-first pipeline that monitors an authorised creator's Twitch chat, 
 4. **Trend detection**: Python counts messages in 10-second buckets and compares each bucket with the preceding 10 minutes using a median/MAD baseline. Minimum-count, ratio and cooldown controls reduce false positives.
 5. **Clip extraction**: after the post-roll is available, FFmpeg concatenates the relevant segments and writes a 30-second MP4 by default (15 seconds before and 15 seconds after the detected event).
 6. **Transcription**: optional faster-whisper creates JSON word-level timestamps. The default model is `tiny` on CPU to keep the workload manageable.
-7. **Review**: candidate clips and JSON sidecars are saved to `data/live_clips`. A later dashboard phase can show chat rate, transcript, preview, title suggestions and approval state.
+7. **Review**: candidate clips and JSON sidecars are saved to `data/live_clips`. The Streamlit Live Clips tab previews MP4s, displays spike metrics and timestamps, loads faster-whisper transcripts, and persists approve/reject decisions in each metadata sidecar.
 
 ## Twitch live-stream option for channels that enable Clips
 
@@ -128,8 +128,8 @@ Add the official Twitch Create Clip API adapter for channels that allow viewer c
 ### Phase 3 — candidate ranking
 Combine chat spike strength, unique chatter count, transcript excitement/context, scene changes and audio peaks. Add a manual approval queue; do not auto-publish.
 
-### Phase 4 — dashboard integration
-Add a Live Clips page to Streamlit with stream configuration, live chat-rate chart, spike timeline, clip preview, transcript, title/hook generation via the existing Groq service, and approve/reject/export actions.
+### Phase 4 — dashboard integration (initial review dashboard implemented)
+The Streamlit Live Clips tab now lists candidate MP4s, previews clips, shows chat-spike metrics and event timestamps, displays transcript text and segment timestamps, supports MP4/transcript downloads, and persists approve/reject decisions in the JSON sidecar. Remaining dashboard work: live worker health, live chat-rate chart, spike timeline, creator/channel filters and optional Groq title/hook suggestions.
 
 ### Phase 5 — optional portrait output
 Use FFmpeg crop/scale filters or OpenShorts for 9:16 reframing and subtitle burn-in. Keep this optional so the core pipeline stays lightweight.

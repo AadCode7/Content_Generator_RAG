@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -12,6 +14,12 @@ if str(SRC_PATH) not in sys.path:
 
 import streamlit as st
 
+from gta_researcher.clip_dashboard import (
+    list_clip_candidates,
+    number_value,
+    transcript_text,
+    update_clip_review_status,
+)
 from gta_researcher.config import DEFAULT_MODEL, get_settings
 from gta_researcher.groq_service import GroqResearcher
 from gta_researcher.pipeline import analyze_pending_articles, run_research_cycle
@@ -191,7 +199,7 @@ metric_cols[1].metric("Collected articles", counts["articles"])
 metric_cols[2].metric("New ideas", counts["new"])
 metric_cols[3].metric("Approved ideas", counts["approved"])
 
-tabs = st.tabs(["Research dashboard", "Sources", "Discoveries", "Production queue"])
+tabs = st.tabs(["Research dashboard", "Sources", "Discoveries", "Production queue", "Live Clips"])
 
 with tabs[0]:
     st.subheader("Research dashboard")
@@ -332,6 +340,188 @@ with tabs[3]:
                 ):
                     store.update_discovery_status(item["id"], "used")
                     st.rerun()
+
+with tabs[4]:
+    st.subheader("Live clip review")
+    st.write(
+        "Review candidate clips created by the local FFmpeg worker. Select a clip to preview "
+        "the footage, inspect chat activity and transcripts, then approve or reject it."
+    )
+
+    clips_value = os.getenv("LIVE_CLIPS_DIR", "data/live_clips").strip() or "data/live_clips"
+    clips_dir = Path(clips_value).expanduser()
+    if not clips_dir.is_absolute():
+        clips_dir = PROJECT_ROOT / clips_dir
+    st.caption(f"Clip folder: {clips_dir}")
+
+    toolbar_left, toolbar_right = st.columns([4, 1])
+    with toolbar_left:
+        review_filter = st.selectbox(
+            "Review status",
+            ["all", "pending", "approved", "rejected"],
+            key="live_clip_review_filter",
+        )
+    with toolbar_right:
+        st.write("")
+        if st.button("Refresh clips", use_container_width=True, key="refresh_live_clips"):
+            st.rerun()
+
+    candidates = list_clip_candidates(clips_dir)
+    pending_clips = sum(item.review_status == "pending" for item in candidates)
+    approved_clips = sum(item.review_status == "approved" for item in candidates)
+    rejected_clips = sum(item.review_status == "rejected" for item in candidates)
+
+    clip_metrics = st.columns(4)
+    clip_metrics[0].metric("Total clips", len(candidates))
+    clip_metrics[1].metric("Pending review", pending_clips)
+    clip_metrics[2].metric("Approved", approved_clips)
+    clip_metrics[3].metric("Rejected", rejected_clips)
+
+    visible_candidates = [
+        item for item in candidates
+        if review_filter == "all" or item.review_status == review_filter
+    ]
+    if not visible_candidates:
+        st.info(
+            "No clips match this filter yet. Start the local live clipper to generate candidates."
+        )
+        st.code(
+            "python scripts/run_live_clipper.py --channel YOUR_CHANNEL --confirm-rights",
+            language="powershell",
+        )
+    else:
+        clip_labels = [item.clip_path.name for item in visible_candidates]
+        selected_label = st.selectbox(
+            "Choose a candidate clip",
+            clip_labels,
+            key="selected_live_clip",
+        )
+        selected_clip = next(
+            item for item in visible_candidates if item.clip_path.name == selected_label
+        )
+        metadata = selected_clip.metadata
+
+        timestamp_value = metadata.get("timestamp_utc", "")
+        try:
+            timestamp_display = datetime.fromisoformat(
+                str(timestamp_value).replace("Z", "+00:00")
+            ).astimezone().strftime("%d %b %Y, %I:%M:%S %p %Z")
+        except (TypeError, ValueError):
+            timestamp_display = datetime.fromtimestamp(
+                number_value(metadata.get("timestamp", 0)), timezone.utc
+            ).astimezone().strftime("%d %b %Y, %I:%M:%S %p %Z")
+
+        st.markdown(f"### {selected_clip.clip_path.stem}")
+        st.caption(
+            f"Detected: {timestamp_display} · Review status: {selected_clip.review_status.title()}"
+        )
+
+        preview_col, details_col = st.columns([1.35, 1])
+        with preview_col:
+            try:
+                st.video(str(selected_clip.clip_path))
+                st.download_button(
+                    "Download selected MP4",
+                    data=selected_clip.clip_path.read_bytes(),
+                    file_name=selected_clip.clip_path.name,
+                    mime="video/mp4",
+                    key=f"download_clip_{selected_clip.clip_path.stem}",
+                    use_container_width=True,
+                )
+            except OSError as exc:
+                st.warning(f"Could not load this clip: {exc}")
+
+        with details_col:
+            detail_metrics = st.columns(2)
+            detail_metrics[0].metric(
+                "Chat messages",
+                int(number_value(metadata.get("messages_in_bucket", 0))),
+            )
+            detail_metrics[1].metric(
+                "Activity ratio",
+                f"{number_value(metadata.get('activity_ratio', 0)):.1f}x",
+            )
+            st.caption(
+                f"Baseline median: {number_value(metadata.get('baseline_median', 0)):.1f} "
+                "messages / bucket"
+            )
+            st.caption(
+                f"Baseline MAD: {number_value(metadata.get('baseline_mad', 0)):.1f} · "
+                f"Detection threshold: {number_value(metadata.get('threshold', 0)):.1f}"
+            )
+            st.caption(
+                f"Event bucket starts at: {number_value(metadata.get('bucket_start', 0)):.1f}s "
+                "on the recorder timeline"
+            )
+            st.caption(f"File size: {selected_clip.clip_path.stat().st_size / (1024 * 1024):.1f} MB")
+
+        if selected_clip.transcript:
+            with st.expander("Transcript", expanded=True):
+                text_value = transcript_text(selected_clip.transcript)
+                language = selected_clip.transcript.get("language", "unknown")
+                st.caption(f"Detected language: {language}")
+                if text_value:
+                    st.write(text_value)
+                    st.download_button(
+                        "Download transcript",
+                        data=text_value,
+                        file_name=f"{selected_clip.clip_path.stem}_transcript.txt",
+                        mime="text/plain",
+                        key=f"download_transcript_{selected_clip.clip_path.stem}",
+                    )
+                else:
+                    st.info("The transcript file exists but contains no readable text.")
+                segments = selected_clip.transcript.get("segments", [])
+                if isinstance(segments, list) and segments:
+                    with st.expander("Transcript timestamps"):
+                        for segment in segments:
+                            if not isinstance(segment, dict):
+                                continue
+                            start_seconds = number_value(segment.get("start", 0))
+                            end_seconds = number_value(segment.get("end", 0))
+                            segment_text = str(segment.get("text", "")).strip()
+                            if segment_text:
+                                st.caption(f"{start_seconds:05.1f}s – {end_seconds:05.1f}s")
+                                st.write(segment_text)
+        else:
+            st.info(
+                "No transcript found for this clip. Install the transcription extra and run "
+                "scripts/transcribe_clips.py against the clip folder."
+            )
+
+        action_left, action_right, action_note = st.columns([1, 1, 3])
+        with action_left:
+            if st.button(
+                "Approve clip",
+                key=f"approve_clip_{selected_clip.clip_path.stem}",
+                disabled=selected_clip.review_status == "approved",
+                use_container_width=True,
+            ):
+                try:
+                    update_clip_review_status(selected_clip, "approved")
+                    st.success("Clip approved.")
+                    st.rerun()
+                except (OSError, ValueError) as exc:
+                    st.error(f"Could not save review status: {exc}")
+        with action_right:
+            if st.button(
+                "Reject clip",
+                key=f"reject_clip_{selected_clip.clip_path.stem}",
+                disabled=selected_clip.review_status == "rejected",
+                use_container_width=True,
+            ):
+                try:
+                    update_clip_review_status(selected_clip, "rejected")
+                    st.success("Clip rejected.")
+                    st.rerun()
+                except (OSError, ValueError) as exc:
+                    st.error(f"Could not save review status: {exc}")
+        with action_note:
+            st.caption(
+                "Review decisions are saved in the clip's JSON sidecar and remain available "
+                "after the dashboard is restarted."
+            )
+
 
 st.divider()
 st.caption(
