@@ -14,6 +14,21 @@ Build a local-first pipeline that monitors an authorised creator's Twitch chat, 
 6. **Transcription**: optional faster-whisper creates JSON word-level timestamps. The default model is `tiny` on CPU to keep the workload manageable.
 7. **Review**: candidate clips and JSON sidecars are saved to `data/live_clips`. A later dashboard phase can show chat rate, transcript, preview, title suggestions and approval state.
 
+## Twitch live-stream option for channels that enable Clips
+
+For public Twitch channels where the broadcaster has enabled viewer clipping, a future adapter can use Twitch's official Create Clip API instead of extracting the full media stream:
+
+- The viewer's user access token needs the `clips:edit` scope.
+- The broadcaster must have Clips enabled and must not have blocked the viewer through follower/subscriber-only or other clip restrictions.
+- The API captures up to 90 seconds around the request and provides an edit URL. By default it publishes up to the last 30 seconds of that capture window.
+- Because Twitch's documented capture window is approximately 85 seconds before and 5 seconds after the request, calling the endpoint roughly 10 seconds after a detected chat spike can place the default 30-second clip approximately 15 seconds before and after the spike. Network and platform timing make this approximate, so it must be calibrated.
+- The Twitch-hosted clip can be reviewed through its returned URL/edit URL. Downloading the media for local Whisper transcription is a separate permission: the Clips Download API requires `editor:manage:clips` or `channel:manage:clips` and the corresponding broadcaster/editor authorisation.
+- For an offline VOD, Twitch's Create Clip From VOD endpoint is restricted to the broadcaster or an authorised editor.
+
+This adapter is not yet implemented in the current CLI. It is the recommended next step for monitoring creator channels without requiring a direct HLS/media URL. The current FFmpeg mode remains for media inputs you are authorised to record locally.
+
+Streamlink is a free, open-source stream extractor with a Twitch plugin, but it is not included as a default downloader. Use it only where recording is expressly permitted and consistent with Twitch's terms; a public player URL is not itself permission to download or republish the stream.
+
 ## Current implementation
 
 - Twitch IRC read-only client with reconnect handling and PING/PONG support.
@@ -107,8 +122,8 @@ A cooldown prevents repeated clips from the same burst. This is a heuristic, not
 ### Phase 1 — implemented in this repository
 Chat listener, spike detector, segmented FFmpeg recorder, clip extraction, optional Whisper transcription, CLI and offline tests.
 
-### Phase 2 — reliability
-Move chat to EventSub where appropriate, refresh OAuth tokens safely, improve reconnect and duplicate-event handling, monitor recorder health, add disk quotas, and calibrate chat/video clock drift.
+### Phase 2 — reliability and Twitch-native clips
+Add the official Twitch Create Clip API adapter for channels that allow viewer clipping, handle OAuth scopes and clip polling, and download media only when the viewer is an authorised broadcaster/editor. Move chat to EventSub where appropriate, refresh OAuth tokens safely, improve reconnect and duplicate-event handling, monitor recorder health, add disk quotas, and calibrate chat/video clock drift.
 
 ### Phase 3 — candidate ranking
 Combine chat spike strength, unique chatter count, transcript excitement/context, scene changes and audio peaks. Add a manual approval queue; do not auto-publish.
