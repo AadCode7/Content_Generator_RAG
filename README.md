@@ -18,6 +18,7 @@ The app runs on your laptop without local LLM inference. Text analysis and scrip
 - Detect authorised Twitch chat activity spikes and automatically extract candidate clips from an authorised live media input.
 - Optionally transcribe candidate clips with faster-whisper.
 - Review generated clips in the Streamlit Live Clips tab with video previews, chat-spike metrics, transcripts, downloads and persistent approve/reject status.
+- Generate clip-specific editing packages inside the preview: hooks, timed on-screen text, post captions, hashtags, mention/credit guidance, thumbnail concepts, editing timelines, audio guidance and CTAs. Groq personalises suggestions from the transcript and clip metadata; local starter suggestions work without an API key.
 
 This first version does not independently verify claims and does not run cross-source duplicate-story detection. Review source material before publishing.
 
@@ -131,6 +132,7 @@ The default `tiny` model is intended to keep CPU and memory use modest. Larger m
 7. Open Discoveries to read ideas, edit hooks/scripts, regenerate scripts and approve useful ideas.
 8. Open Production queue to download approved voiceover scripts and mark completed ideas as used.
 9. Open Live Clips to preview candidate MP4s, inspect chat-spike statistics and transcripts, download files, and approve or reject candidates.
+10. In the selected clip's Video editing assistant, choose the video type, platform and tone, then generate the editing package. Review and edit the hook/caption/hashtags, copy the thumbnail and timeline guidance, and download the complete Markdown editing brief. The package is saved beside the clip as a `.editor.json` sidecar.
 
 The default sources are starting points. A source may return an error, change its feed URL, block automated requests or publish content that does not mention GTA VI in the title or summary. Add or disable sources as needed.
 
