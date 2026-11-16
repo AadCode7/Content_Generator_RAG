@@ -13,6 +13,11 @@ import signal
 from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
+
 from gta_researcher.live_clips import (
     ChatSpikeDetector,
     SegmentRecorder,
@@ -60,6 +65,12 @@ async def run(args: argparse.Namespace) -> None:
         segment_seconds=args.segment_seconds,
     )
     recorder.start()
+    await asyncio.sleep(2)
+    if not recorder.is_running():
+        recorder.stop()
+        raise SystemExit(
+            f"FFmpeg could not keep the media input open. Inspect {output_dir / 'ffmpeg_recording.log'}."
+        )
     recording_started_at = datetime.now(timezone.utc)
     detector = ChatSpikeDetector(config)
     reader = TwitchIRCReader(username, token, args.channel)
