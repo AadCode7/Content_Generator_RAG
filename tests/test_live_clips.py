@@ -29,7 +29,7 @@ class ChatSpikeDetectorTests(unittest.TestCase):
 
     def test_cooldown_suppresses_duplicate_spikes(self):
         detector = ChatSpikeDetector(
-            SpikeConfig(min_messages=2, ratio_threshold=2.0, cooldown_seconds=45)
+            SpikeConfig(min_messages=2, ratio_threshold=2.0, mad_multiplier=0.0, cooldown_seconds=45)
         )
         first = detector.add_message(100.0)
         second = detector.add_message(101.0)
