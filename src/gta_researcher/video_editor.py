@@ -173,9 +173,31 @@ Context:
         response_format={"type": "json_object"},
     )
     payload = _parse_json_object(completion.choices[0].message.content or "{}")
-    # Keep the UI predictable if the model omits an optional field.
+    # Keep the UI predictable if the model omits or mis-types a field.
     for key, default in fallback.items():
         payload.setdefault(key, default)
+    for key in ("video_title", "hook", "caption", "audio", "call_to_action"):
+        if not isinstance(payload.get(key), str):
+            payload[key] = str(fallback[key])
+    for key in ("on_screen_text", "hashtags", "mentions", "editing_timeline", "editing_checklist"):
+        if not isinstance(payload.get(key), list):
+            payload[key] = fallback[key]
+    payload["on_screen_text"] = [
+        item for item in payload["on_screen_text"] if isinstance(item, dict)
+    ]
+    payload["editing_timeline"] = [
+        item for item in payload["editing_timeline"] if isinstance(item, dict)
+    ]
+    payload["hashtags"] = [str(item) for item in payload["hashtags"] if str(item).strip()]
+    payload["mentions"] = [str(item) for item in payload["mentions"] if str(item).strip()]
+    payload["editing_checklist"] = [
+        str(item) for item in payload["editing_checklist"] if str(item).strip()
+    ]
+    if not isinstance(payload.get("thumbnail"), dict):
+        payload["thumbnail"] = fallback["thumbnail"]
+    else:
+        for key, default in fallback["thumbnail"].items():
+            payload["thumbnail"].setdefault(key, default)
     payload["video_type"] = video_type
     payload["platform"] = platform
     payload["generation_mode"] = "Groq AI"
