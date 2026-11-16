@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gta-vi-news-researcher"
-version = "0.1.0"
-description = "A source-grounded GTA VI news researcher and short-form video idea generator."
+version = "0.2.0"
+description = "A source-grounded GTA VI researcher, script generator and authorised live-stream clipper."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -16,7 +16,12 @@ dependencies = [
     "trafilatura>=2.0.0,<3.0.0",
     "beautifulsoup4>=4.12.3,<5.0.0",
     "python-dotenv>=1.0.1,<2.0.0",
+    "websockets>=12.0,<16.0",
 ]
+
+[project.optional-dependencies]
+transcription = ["faster-whisper>=1.1.0,<2.0.0"]
+test = ["pytest>=8.0.0,<9.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -15,43 +15,43 @@ The app runs on your laptop without local LLM inference. Text analysis and scrip
 - Approve/reject ideas, edit scripts and download production-ready text files.
 - Add, enable and disable sources.
 - Keep the originating source URL attached to every idea.
+- Detect authorised Twitch chat activity spikes and automatically extract candidate clips from an authorised live media input.
+- Optionally transcribe candidate clips with faster-whisper.
 
 This first version does not independently verify claims and does not run cross-source duplicate-story detection. Review source material before publishing.
 
 ## Project structure
 
-    News_Generator_RAG/
+    Content_Generator_RAG/
     ├── app.py
     ├── .env.example
     ├── .gitignore
     ├── pyproject.toml
     ├── requirements.txt
     ├── README.md
+    ├── docs/
+    │   ├── LIVE_CLIPPER_PLAN.md
+    │   └── RIGHTS_AND_PLATFORM_COMPLIANCE.md
+    ├── scripts/
+    │   ├── run_live_clipper.py
+    │   └── transcribe_clips.py
     ├── .streamlit/
-    │   └── config.toml
-    ├── src/
-    │   └── gta_researcher/
-    │       ├── __init__.py
-    │       ├── config.py
-    │       ├── collectors.py
-    │       ├── groq_service.py
-    │       ├── models.py
-    │       ├── pipeline.py
-    │       ├── scoring.py
-    │       └── storage.py
+    ├── src/gta_researcher/
+    │   ├── live_clips.py
+    │   └── twitch_chat.py
     └── tests/
-        ├── __init__.py
-        ├── test_collectors.py
-        ├── test_scoring.py
-        └── test_storage.py
+        ├── test_live_clips.py
+        └── test_twitch_chat.py
 
 ## Requirements
 
-- Python 3.10 or later.
-- A Groq API key from https://console.groq.com/keys.
-- Internet connection for source collection and Groq requests.
+- Python 3.10 or later (Python 3.11 recommended).
+- A Groq API key from https://console.groq.com/keys for the research dashboard.
+- FFmpeg installed and available on PATH for live recording and clip extraction.
+- Twitch username and a user OAuth token with the `chat:read` scope for the live chat reader.
+- An authorised direct media URL for the video input.
 
-No NVIDIA GPU or local model is required.
+No NVIDIA GPU is required for the research dashboard or the initial clipper. faster-whisper transcription is optional and runs on CPU by default.
 
 ## Setup on Windows
 
@@ -70,6 +70,7 @@ If PowerShell blocks activation, use the virtual environment Python directly:
 
     python -m pip install --upgrade pip
     python -m pip install -r requirements.txt
+    python -m pip install --no-deps -e .
 
 ### 3. Configure Groq
 
@@ -92,7 +93,33 @@ The configured model must be available to your Groq account. Change GROQ_MODEL i
 
 Streamlit prints a local URL, normally http://localhost:8501.
 
-## How to use it
+## Live chat-spike clipper
+
+The live clipper is a separate local worker. Do not run it inside Streamlit Community Cloud or a short-lived serverless function.
+
+1. Install FFmpeg and confirm `ffmpeg -version` works.
+2. Add `TWITCH_USERNAME` and `TWITCH_OAUTH_TOKEN` to your local `.env`. The token must have `chat:read`; never commit it or share it.
+3. Set `LIVE_VIDEO_URL` to a direct media input that you own or have explicit permission to record. This MVP does not resolve Twitch channel pages or download third-party VODs.
+4. Start the worker:
+
+       python scripts/run_live_clipper.py --channel YOUR_CHANNEL --confirm-rights
+
+It records the authorised media source into short MPEG-TS segments, reads Twitch chat, detects message-rate spikes and saves a 30-second MP4 candidate around each spike. Defaults are 15 seconds before and 15 seconds after the event. Clips and JSON metadata are saved in `data/live_clips`.
+
+Tune the detector with `--min-messages`, `--ratio-threshold` and `--cooldown-seconds`. If chat and video timestamps are offset, measure the delay and set `--sync-offset-seconds`.
+
+See [the live clipper implementation plan](docs/LIVE_CLIPPER_PLAN.md) and [platform/rights notes](docs/RIGHTS_AND_PLATFORM_COMPLIANCE.md) before recording or publishing.
+
+### Optional Whisper transcription
+
+Install the optional dependency only when you want transcription:
+
+    python -m pip install -e ".[transcription]"
+    python scripts/transcribe_clips.py data/live_clips --model tiny --device cpu
+
+The default `tiny` model is intended to keep CPU and memory use modest. Larger models may improve accuracy but take more memory and time.
+
+## How to use the research dashboard
 
 1. Enter your Groq API key in the sidebar or configure it in .env.
 2. Test the Groq connection.
@@ -126,10 +153,10 @@ The data directory and database are ignored by Git. Back up this file if you wan
 3. Set the main file path to app.py.
 4. In the app's Settings → Secrets, add:
 
-    GROQ_API_KEY = "your_groq_api_key"
-    GROQ_MODEL = "openai/gpt-oss-20b"
+       GROQ_API_KEY = "your_groq_api_key"
+       GROQ_MODEL = "openai/gpt-oss-20b"
 
-The app uses a local SQLite database by default. Some cloud environments have ephemeral local storage, so use a persistent database service before relying on cloud deployment for long-term storage.
+The app uses a local SQLite database by default. Some cloud environments have ephemeral local storage, so use a persistent database service before relying on cloud deployment for long-term storage. Run the live capture worker separately on a machine that remains online and has FFmpeg installed.
 
 ## Tests
 
@@ -137,4 +164,4 @@ Run:
 
     python -m unittest discover -s tests -v
 
-The tests do not call Groq or make external network requests.
+The tests do not call Groq, Twitch or external media sources.
