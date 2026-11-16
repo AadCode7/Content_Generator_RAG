@@ -169,7 +169,8 @@ Context:
             {"role": "user", "content": prompt},
         ],
         temperature=0.55,
-        max_completion_tokens=1600,
+        reasoning_effort="low" if model.strip() == "openai/gpt-oss-20b" else None,
+        max_completion_tokens=1800,
         response_format={"type": "json_object"},
     )
     payload = _parse_json_object(completion.choices[0].message.content or "{}")
