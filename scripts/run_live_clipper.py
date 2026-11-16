@@ -2,7 +2,7 @@
 
 This script does not resolve Twitch channel pages or download third-party VODs.
 Set LIVE_VIDEO_URL to a direct media input you own or are explicitly authorised
-to record. The URL is kept out of command-line arguments and application logs.
+to record. The URL is not printed by the application.
 """
 from __future__ import annotations
 
@@ -21,6 +21,11 @@ from gta_researcher.live_clips import (
 )
 from gta_researcher.twitch_chat import TwitchIRCReader
 
+try:
+    from transcribe_clips import transcribe_file
+except ImportError:
+    transcribe_file = None
+
 
 async def run(args: argparse.Namespace) -> None:
     source_url = os.getenv("LIVE_VIDEO_URL", "").strip()
@@ -32,6 +37,8 @@ async def run(args: argparse.Namespace) -> None:
         raise SystemExit("Set TWITCH_USERNAME and TWITCH_OAUTH_TOKEN (chat:read scope).")
     if not args.confirm_rights:
         raise SystemExit("Pass --confirm-rights after confirming recording/reuse permission.")
+    if args.transcribe and transcribe_file is None:
+        raise SystemExit("Transcription helper is unavailable; run this script from the repository checkout.")
 
     output_dir = Path(args.output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -92,8 +99,13 @@ async def run(args: argparse.Namespace) -> None:
                 )
                 save_spike_metadata(spike, clip, output_dir)
                 print(f"Saved candidate clip: {clip}")
+                if args.transcribe and transcribe_file is not None:
+                    transcript = await asyncio.to_thread(
+                        transcribe_file, clip, args.whisper_model, args.whisper_device
+                    )
+                    print(f"Saved transcript: {transcript}")
             except Exception as exc:
-                print(f"Clip extraction failed: {type(exc).__name__}: {exc}")
+                print(f"Clip processing failed: {type(exc).__name__}: {exc}")
 
     consumer = asyncio.create_task(consume_chat())
     try:
@@ -120,6 +132,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--post-roll-seconds", type=int, default=15)
     parser.add_argument("--post-roll-timeout", type=int, default=90)
     parser.add_argument("--sync-offset-seconds", type=float, default=0.0)
+    parser.add_argument("--transcribe", action="store_true", help="Run faster-whisper on each extracted clip.")
+    parser.add_argument("--whisper-model", choices=["tiny", "base", "small", "medium"], default="tiny")
+    parser.add_argument("--whisper-device", choices=["cpu", "cuda"], default="cpu")
     return parser
 
 

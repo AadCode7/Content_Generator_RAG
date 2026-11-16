@@ -16,7 +16,6 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
-from typing import Iterable
 
 
 @dataclass(frozen=True)
@@ -86,7 +85,6 @@ class ChatSpikeDetector:
             self._counts.get(index, 0)
             for index in range(first_baseline_bucket, bucket)
         ]
-        # Keep only the current and recent baseline buckets.
         for old_bucket in list(self._counts):
             if old_bucket < first_baseline_bucket:
                 del self._counts[old_bucket]
@@ -247,7 +245,7 @@ class SegmentRecorder:
         try:
             with concat_file.open("w", encoding="utf-8") as handle:
                 for segment in selected:
-                    escaped = str(segment.path).replace("'", "'\\''")
+                    escaped = segment.path.as_posix().replace("'", "'\\''")
                     handle.write(f"file '{escaped}'\n")
             seek_from_concat_start = max(0.0, clip_start - selected[0].start)
             duration = clip_end - clip_start
