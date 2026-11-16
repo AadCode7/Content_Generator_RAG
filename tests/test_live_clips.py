@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import unittest
 
 from gta_researcher.live_clips import ChatSpikeDetector, SpikeConfig
@@ -6,9 +6,9 @@ from gta_researcher.live_clips import ChatSpikeDetector, SpikeConfig
 
 class ChatSpikeDetectorTests(unittest.TestCase):
     def test_normal_rate_does_not_trigger(self):
-        detector = ChatSpikeDetector(SpikeConfig(min_messages=6, cooldown_seconds=0))
+        detector = ChatSpikeDetector(SpikeConfig(min_messages=5, cooldown_seconds=0))
         spikes = []
-        # Five messages per ten-second bucket remain below the six-message floor.
+        # One message every two seconds: no ten-second bucket reaches threshold.
         for second in range(0, 120, 2):
             spikes.append(detector.add_message(float(second)))
         self.assertFalse(any(spikes))

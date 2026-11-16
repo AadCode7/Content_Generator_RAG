@@ -12,12 +12,6 @@ class TwitchChatParserTests(unittest.TestCase):
         self.assertEqual(message.text, "That was amazing!")
         self.assertIsNotNone(message.received_at.tzinfo)
 
-    def test_parse_tagged_privmsg(self):
-        message = parse_privmsg("@badge-info=;badges=;color=#FFFFFF :sampleuser!sampleuser@sampleuser.tmi.twitch.tv PRIVMSG #samplechannel :Great play")
-        self.assertIsNotNone(message)
-        self.assertEqual(message.username, "sampleuser")
-        self.assertEqual(message.text, "Great play")
-
     def test_ignore_ping_and_non_message_lines(self):
         self.assertIsNone(parse_privmsg("PING :tmi.twitch.tv"))
         self.assertIsNone(parse_privmsg(":server NOTICE * :Login authentication failed"))

@@ -37,7 +37,7 @@ def parse_privmsg(line: str) -> TwitchChatMessage | None:
         return TwitchChatMessage(
             username=username,
             channel=channel_name,
-            text=message.rstrip("\\r\\n"),
+            text=message.rstrip("\r\n"),
             received_at=datetime.now(timezone.utc),
         )
     except ValueError:
