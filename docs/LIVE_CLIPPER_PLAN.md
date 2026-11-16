@@ -129,7 +129,7 @@ Add the official Twitch Create Clip API adapter for channels that allow viewer c
 Combine chat spike strength, unique chatter count, transcript excitement/context, scene changes and audio peaks. Add a manual approval queue; do not auto-publish.
 
 ### Phase 4 — dashboard integration (initial review dashboard implemented)
-The Streamlit Live Clips tab now lists candidate MP4s, previews clips, shows chat-spike metrics and event timestamps, displays transcript text and segment timestamps, supports MP4/transcript downloads, and persists approve/reject decisions in the JSON sidecar. Remaining dashboard work: live worker health, live chat-rate chart, spike timeline, creator/channel filters and optional Groq title/hook suggestions.
+The Streamlit Live Clips tab now lists candidate MP4s, previews clips, shows chat-spike metrics and event timestamps, displays transcript text and segment timestamps, supports MP4/transcript downloads, and persists approve/reject decisions in the JSON sidecar. Remaining dashboard work: live worker health, live chat-rate chart, spike timeline and creator/channel filters. The clip preview now includes a video editing assistant with selectable content type/platform/tone, Groq-personalised hooks, timed overlays, captions, hashtags, mention/credit guidance, thumbnail direction, edit timeline, audio guidance and CTA. Suggestions are saved in a separate `.editor.json` sidecar; local starter suggestions remain available without Groq.
 
 ### Phase 5 — optional portrait output
 Use FFmpeg crop/scale filters or OpenShorts for 9:16 reframing and subtitle burn-in. Keep this optional so the core pipeline stays lightweight.
