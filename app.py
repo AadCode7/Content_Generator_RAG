@@ -24,6 +24,15 @@ from gta_researcher.config import DEFAULT_MODEL, get_settings
 from gta_researcher.groq_service import GroqResearcher
 from gta_researcher.pipeline import analyze_pending_articles, run_research_cycle
 from gta_researcher.storage import ResearchStore
+from gta_researcher.video_editor import (
+    PLATFORMS,
+    TONES,
+    VIDEO_TYPES,
+    editing_pack_markdown,
+    generate_editing_pack,
+    load_editing_pack,
+    save_editing_pack,
+)
 
 st.set_page_config(page_title="GTA VI News Researcher", page_icon="🎮", layout="wide")
 settings = get_settings()
@@ -488,6 +497,161 @@ with tabs[4]:
                 "No transcript found for this clip. Install the transcription extra and run "
                 "scripts/transcribe_clips.py against the clip folder."
             )
+
+        st.divider()
+        st.subheader("🎬 Video editing assistant")
+        st.write(
+            "Choose the kind of edit you are making. The assistant uses this clip's transcript "
+            "and chat metadata to prepare hooks, timed overlays, captions, hashtags, mentions, "
+            "thumbnail direction and a practical editing plan."
+        )
+
+        editor_col1, editor_col2, editor_col3 = st.columns(3)
+        with editor_col1:
+            video_type = st.selectbox(
+                "What kind of video is this?",
+                list(VIDEO_TYPES),
+                key=f"editor_type_{selected_clip.clip_path.stem}",
+            )
+        with editor_col2:
+            target_platform = st.selectbox(
+                "Where will you post it?",
+                PLATFORMS,
+                index=3,
+                key=f"editor_platform_{selected_clip.clip_path.stem}",
+            )
+        with editor_col3:
+            editing_tone = st.selectbox(
+                "Editing style",
+                TONES,
+                index=0,
+                key=f"editor_tone_{selected_clip.clip_path.stem}",
+            )
+
+        st.caption(
+            "Groq AI is used when a key is configured. Without it, the app generates a useful "
+            "local starter pack. Suggestions are editable and should be checked against the actual footage."
+        )
+        if st.button(
+            "✨ Generate editing suggestions",
+            type="primary",
+            key=f"generate_editor_pack_{selected_clip.clip_path.stem}",
+            use_container_width=True,
+        ):
+            transcript_for_editor = transcript_text(selected_clip.transcript)
+            try:
+                with st.spinner("Building your video editing package..."):
+                    editing_pack = generate_editing_pack(
+                        api_key=api_key,
+                        model=model,
+                        video_type=video_type,
+                        platform=target_platform,
+                        tone=editing_tone,
+                        clip_name=selected_clip.clip_path.name,
+                        transcript=transcript_for_editor,
+                        metadata=metadata,
+                    )
+                save_editing_pack(selected_clip.clip_path, editing_pack)
+                st.session_state[f"editor_pack_notice_{selected_clip.clip_path.stem}"] = (
+                    editing_pack.get("generation_mode", "Generated")
+                )
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Could not generate editing suggestions: {type(exc).__name__}: {exc}")
+
+        saved_pack = load_editing_pack(selected_clip.clip_path)
+        if saved_pack:
+            notice_key = f"editor_pack_notice_{selected_clip.clip_path.stem}"
+            generation_notice = st.session_state.pop(notice_key, saved_pack.get("generation_mode", "Saved"))
+            st.caption(
+                f"Loaded editing package · {generation_notice} · "
+                f"{saved_pack.get('video_type', 'Video type not recorded')} · "
+                f"{saved_pack.get('platform', 'Platform not recorded')}"
+            )
+            st.markdown(f"**Working title:** {saved_pack.get('video_title', selected_clip.clip_path.stem)}")
+            st.markdown("**Opening hook**")
+            hook_key = f"editor_hook_{selected_clip.clip_path.stem}"
+            if hook_key not in st.session_state:
+                st.session_state[hook_key] = str(saved_pack.get("hook", ""))
+            st.text_input("Hook text", key=hook_key)
+
+            with st.expander("On-screen text and timing", expanded=True):
+                overlay_items = saved_pack.get("on_screen_text", [])
+                if overlay_items:
+                    for index, overlay in enumerate(overlay_items):
+                        if isinstance(overlay, dict):
+                            st.markdown(
+                                f"**{overlay.get('time', 'Timing to confirm')}**  "
+                                f"{overlay.get('text', '')}"
+                            )
+                else:
+                    st.info("No overlay text was returned. Add captions that match the footage.")
+
+            with st.expander("Post caption, hashtags and mentions", expanded=True):
+                caption_key = f"editor_caption_{selected_clip.clip_path.stem}"
+                if caption_key not in st.session_state:
+                    st.session_state[caption_key] = str(saved_pack.get("caption", ""))
+                st.text_area("Post caption (editable)", key=caption_key, height=130)
+                hashtags = saved_pack.get("hashtags", [])
+                hashtag_text = " ".join(str(tag) for tag in hashtags)
+                st.text_input(
+                    "Hashtags (copy and edit)",
+                    value=hashtag_text,
+                    key=f"editor_hashtags_{selected_clip.clip_path.stem}",
+                )
+                mentions = saved_pack.get("mentions", [])
+                st.markdown("**Mention / credit suggestions**")
+                for mention in mentions:
+                    st.markdown(f"- {mention}")
+
+            with st.expander("Thumbnail concept", expanded=True):
+                thumbnail = saved_pack.get("thumbnail", {})
+                if isinstance(thumbnail, dict):
+                    st.markdown(f"**Thumbnail text:** {thumbnail.get('title', '')}")
+                    st.write(thumbnail.get("composition", ""))
+                    st.caption(f"Text placement: {thumbnail.get('text_placement', '')}")
+                    st.caption(f"Style: {thumbnail.get('style', '')}")
+
+            with st.expander("Editing timeline and audio", expanded=True):
+                for beat in saved_pack.get("editing_timeline", []):
+                    if isinstance(beat, dict):
+                        st.markdown(f"**{beat.get('time', '')}**")
+                        st.write(beat.get("instruction", ""))
+                st.markdown("**Audio mix**")
+                st.write(saved_pack.get("audio", ""))
+
+            st.markdown("**Suggested ending / CTA**")
+            st.write(saved_pack.get("call_to_action", ""))
+            st.markdown("**Final editing checklist**")
+            for check in saved_pack.get("editing_checklist", []):
+                st.markdown(f"- {check}")
+
+            if st.button(
+                "Save my caption and hook edits",
+                key=f"save_editor_edits_{selected_clip.clip_path.stem}",
+            ):
+                updated_pack = dict(saved_pack)
+                updated_pack["hook"] = st.session_state[hook_key]
+                updated_pack["caption"] = st.session_state[caption_key]
+                updated_pack["hashtags"] = [
+                    tag for tag in st.session_state[
+                        f"editor_hashtags_{selected_clip.clip_path.stem}"
+                    ].split() if tag
+                ]
+                save_editing_pack(selected_clip.clip_path, updated_pack)
+                st.success("Your edits have been saved with this clip.")
+                st.rerun()
+
+            st.download_button(
+                "Download complete editing brief (.md)",
+                data=editing_pack_markdown(saved_pack),
+                file_name=f"{selected_clip.clip_path.stem}_editing_brief.md",
+                mime="text/markdown",
+                key=f"download_editing_brief_{selected_clip.clip_path.stem}",
+                use_container_width=True,
+            )
+        else:
+            st.info("Generate a package to see tailored hooks, overlays, social copy, thumbnail direction and editing instructions here.")
 
         action_left, action_right, action_note = st.columns([1, 1, 3])
         with action_left:
