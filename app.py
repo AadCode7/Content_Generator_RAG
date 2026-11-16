@@ -557,7 +557,29 @@ with tabs[4]:
                 )
                 st.rerun()
             except Exception as exc:
-                st.error(f"Could not generate editing suggestions: {type(exc).__name__}: {exc}")
+                st.warning(
+                    f"Groq generation failed ({type(exc).__name__}). A local starter package "
+                    "has been created instead, so you can still work on the edit."
+                )
+                try:
+                    fallback_pack = generate_editing_pack(
+                        api_key="",
+                        model=model,
+                        video_type=video_type,
+                        platform=target_platform,
+                        tone=editing_tone,
+                        clip_name=selected_clip.clip_path.name,
+                        transcript=transcript_text(selected_clip.transcript),
+                        metadata=metadata,
+                    )
+                    fallback_pack["generation_mode"] = "local fallback (Groq unavailable)"
+                    save_editing_pack(selected_clip.clip_path, fallback_pack)
+                    st.rerun()
+                except Exception as fallback_exc:
+                    st.error(
+                        f"Could not create local suggestions: "
+                        f"{type(fallback_exc).__name__}: {fallback_exc}"
+                    )
 
         saved_pack = load_editing_pack(selected_clip.clip_path)
         if saved_pack:
