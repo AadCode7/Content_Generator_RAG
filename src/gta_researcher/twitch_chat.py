@@ -23,6 +23,8 @@ class TwitchChatMessage:
 
 def parse_privmsg(line: str) -> TwitchChatMessage | None:
     """Parse a Twitch IRC PRIVMSG line; return None for protocol/control lines."""
+    if line.startswith("@") and " " in line:
+        line = line.split(" ", 1)[1]
     if " PRIVMSG " not in line or " :" not in line:
         return None
     try:
@@ -35,7 +37,7 @@ def parse_privmsg(line: str) -> TwitchChatMessage | None:
         return TwitchChatMessage(
             username=username,
             channel=channel_name,
-            text=message.rstrip("\r\n"),
+            text=message.rstrip("\\r\\n"),
             received_at=datetime.now(timezone.utc),
         )
     except ValueError:
