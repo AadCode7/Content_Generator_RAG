@@ -8,9 +8,14 @@ import re
 import wave
 from typing import Any
 
-DEFAULT_VOICE = "en-US-AriaNeural"
-DEFAULT_RATE = "-4%"
+DEFAULT_VOICE = "en-GB-SoniaNeural"
+DEFAULT_RATE = "+5%"
 DEFAULT_PITCH = "+1Hz"
+VOICE_PROFILE_NAME = "Bright British radio presenter"
+VOICE_PROFILE_DESCRIPTION = (
+    "British English female voice, lively and conversational, with a slightly quicker "
+    "presenter cadence, clear articulation and a lightly lifted pitch."
+)
 SAMPLE_RATE = 24_000
 MIN_VOICEOVER_WORDS = 145
 VOICEOVER_WORDS_PER_MINUTE = 135
@@ -89,7 +94,7 @@ def generate_voiceover_wav(
     text: str,
     voice: str = DEFAULT_VOICE,
 ) -> bytes:
-    """Generate a warm, expressive female neural voiceover and return WAV bytes."""
+    """Generate an energetic British female presenter voiceover as WAV audio."""
     narration = (text or "").strip()
     if not narration:
         raise ValueError("Add a voiceover script before generating audio.")

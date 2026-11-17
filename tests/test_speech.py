@@ -4,6 +4,10 @@ import wave
 
 from gta_researcher.speech import (
     DEFAULT_VOICE,
+    DEFAULT_RATE,
+    DEFAULT_PITCH,
+    VOICE_PROFILE_NAME,
+    VOICE_PROFILE_DESCRIPTION,
     MIN_VOICEOVER_WORDS,
     compose_voiceover_text,
     count_words,
@@ -13,8 +17,12 @@ from gta_researcher.speech import (
 
 
 class SpeechTests(unittest.TestCase):
-    def test_default_voice_is_female_neural_voice(self):
-        self.assertEqual(DEFAULT_VOICE, "en-US-AriaNeural")
+    def test_default_voice_is_british_female_neural_presenter(self):
+        self.assertEqual(DEFAULT_VOICE, "en-GB-SoniaNeural")
+        self.assertEqual(DEFAULT_RATE, "+5%")
+        self.assertEqual(DEFAULT_PITCH, "+1Hz")
+        self.assertEqual(VOICE_PROFILE_NAME, "Bright British radio presenter")
+        self.assertIn("British English", VOICE_PROFILE_DESCRIPTION)
 
     def test_compose_voiceover_adds_hook_once(self):
         hook = "Wait until you notice this detail."

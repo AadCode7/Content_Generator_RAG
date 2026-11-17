@@ -28,6 +28,8 @@ from gta_researcher.storage import ResearchStore
 from gta_researcher.speech import (
     DEFAULT_VOICE,
     MIN_VOICEOVER_WORDS,
+    VOICE_PROFILE_DESCRIPTION,
+    VOICE_PROFILE_NAME,
     compose_voiceover_text,
     count_words,
     estimate_duration_seconds,
@@ -69,9 +71,9 @@ def get_researcher(api_key: str, model: str) -> GroqResearcher:
 
 
 @st.cache_data(ttl=3600, max_entries=32, show_spinner=False)
-def cached_voiceover_wav(script: str) -> bytes:
-    """Cache generated audio for the current script to avoid repeated TTS requests."""
-    return generate_voiceover_wav(script, voice=DEFAULT_VOICE)
+def cached_voiceover_wav(script: str, voice: str = DEFAULT_VOICE) -> bytes:
+    """Cache generated audio by both script and voice to avoid stale voice previews."""
+    return generate_voiceover_wav(script, voice=voice)
 
 
 def render_discovery(item: dict, api_key: str, model: str) -> None:
@@ -443,7 +445,11 @@ with tabs[3]:
     st.subheader("Production queue")
     st.write(
         "Prepare approved ideas as one-minute voiceovers. Regenerate older short scripts, "
-        "download the text, or create a warm female neural-voice WAV."
+        "download the text, or create a lively British female presenter WAV."
+    )
+    st.caption(
+        f"Voice profile: {VOICE_PROFILE_NAME}. {VOICE_PROFILE_DESCRIPTION} "
+        "This is an original presenter profile, not a recreation of a specific person."
     )
     approved = store.list_discoveries(status="approved", limit=100)
     if not approved:
@@ -465,6 +471,7 @@ with tabs[3]:
             )
             st.caption(f"Source: {item.get('source_url', '')}")
 
+            wav_key = f"voiceover_wav_{DEFAULT_VOICE}_{item['id']}"
             script_col, regenerate_col, audio_col, used_col = st.columns(4)
             with script_col:
                 st.download_button(
@@ -496,6 +503,9 @@ with tabs[3]:
                             generated["script"],
                             generated["visual_notes"],
                         )
+                        st.session_state.pop(
+                            f"voiceover_wav_{DEFAULT_VOICE}_{item['id']}", None
+                        )
                         st.session_state.pop(f"voiceover_wav_{item['id']}", None)
                         st.success("The longer voiceover script has been saved.")
                         st.rerun()
@@ -503,9 +513,8 @@ with tabs[3]:
                         st.error(f"Script regeneration failed: {type(exc).__name__}: {exc}")
 
             with audio_col:
-                wav_key = f"voiceover_wav_{item['id']}"
                 if st.button(
-                    "Generate female WAV",
+                    "Generate British presenter WAV",
                     key=f"queue_generate_wav_{item['id']}",
                     use_container_width=True,
                     disabled=script_words < MIN_VOICEOVER_WORDS,
@@ -516,7 +525,9 @@ with tabs[3]:
                 ):
                     try:
                         with st.spinner("Creating the female neural voiceover..."):
-                            st.session_state[wav_key] = cached_voiceover_wav(voiceover_text)
+                            st.session_state[wav_key] = cached_voiceover_wav(
+                                voiceover_text, DEFAULT_VOICE
+                            )
                     except Exception as exc:
                         st.error(f"WAV generation failed: {type(exc).__name__}: {exc}")
 
@@ -537,7 +548,10 @@ with tabs[3]:
                         "Regenerate it first."
                     )
                 else:
-                    st.caption("Voice: Aria · English (US) · female neural voice")
+                    st.caption(
+                        f"Voice: {DEFAULT_VOICE} · female neural voice · "
+                        f"{DEFAULT_RATE} rate · {DEFAULT_PITCH} pitch"
+                    )
 
             with used_col:
                 if st.button(

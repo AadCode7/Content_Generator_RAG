@@ -29,13 +29,17 @@ You are not being asked to independently verify claims. Make the source type cle
 official source, reporting, community discovery or speculation. Do not describe speculation
 as confirmed information.
 
-The voiceover script must hold attention for at least one minute:
+The voiceover script must hold attention for at least one minute and sound like a real presenter:
 - Write 150-180 spoken words, roughly 65-80 seconds at a natural narration pace.
 - Open with a sharp curiosity hook, then immediately explain what viewers are about to discover.
 - Build the explanation in a clear sequence: context, the specific interesting detail, why it matters,
   and a satisfying payoff or natural question.
-- Use concrete details from the source, vivid but accurate language, varied sentence lengths and
-  conversational energy. Make it sound like a creator talking to viewers, not a news article.
+- Write in lively, natural British English for a gaming audience. Use contractions, direct address,
+  occasional cheeky asides and varied sentence lengths.
+- Sound like a confident, upbeat radio presenter speaking to one listener, not a formal newsreader
+  or a generic AI narrator. Keep the energy bright and playful without shouting.
+- Let sentence length and punctuation create natural breaths and emphasis. Mix short punchy lines
+  with fuller explanations; avoid repetitive transitions, stiff phrasing and over-polished summaries.
 - Use a few deliberate curiosity beats, but do not pad the script, repeat points or rely on empty hype.
 - The script field must start with the exact hook text, so the hook is actually spoken in the WAV.
 - Never add facts, speculation or certainty that the article does not support.
@@ -134,7 +138,7 @@ ARTICLE TEXT:
         self,
         discovery: dict[str, Any],
         target_seconds: int = 65,
-        tone: str = "warm, energetic, conversational and informative",
+        tone: str = "lively, warm, playful and conversational British-English gaming presenter",
     ) -> dict[str, str]:
         """Generate a hook-first voiceover long enough for a one-minute video."""
         minimum_words = 145 if target_seconds >= 60 else max(45, round(target_seconds * 2.2))
@@ -154,6 +158,14 @@ VISUAL NOTES: {discovery.get('visual_notes', '')}
 Target duration: at least {target_seconds} seconds.
 Required script length: {minimum_words}-{maximum_words} spoken words.
 Tone: {tone}.
+
+Delivery notes:
+- Write for a British female radio-presenter delivery: bright, confident, friendly and lightly cheeky.
+- Sound spontaneous and spoken, as though reacting to an interesting discovery with the viewer.
+- Use contractions, natural turns of phrase and occasional rhetorical questions.
+- Vary the rhythm: quick emphasis for reveals, then calmer sentences to explain the detail.
+- Use punctuation to cue natural pauses. Do not insert stage directions, emotion labels or sound effects.
+- Avoid forced slang, repeated "here's the thing" phrases, generic AI transitions and exaggerated hype.
 
 Writing structure:
 1. Start with a punchy, curiosity-led hook that makes a viewer want the next sentence.

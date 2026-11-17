@@ -13,7 +13,7 @@ The app runs on your laptop without local LLM inference. Text analysis and scrip
 - Score ideas for novelty, shareability and visual potential.
 - Generate curiosity-led, hook-first 150-180 word voiceovers designed for 60-80 seconds of narration.
 - Regenerate approved scripts in the production queue and download both TXT and WAV voiceovers.
-- Create a warm, expressive female English neural voiceover (Aria) with audio preview and WAV download; WAV conversion runs locally without FFmpeg.
+- Create a lively, conversational British female neural voiceover (Sonia) with audio preview and WAV download; WAV conversion runs locally without FFmpeg. The delivery profile uses broad radio-presenter traits and does not clone a real person's voice.
 - Approve/reject ideas, edit scripts and download production-ready text files.
 - Add, enable and disable sources.
 - Keep the originating source URL attached to every idea.
@@ -142,7 +142,7 @@ The default sources are starting points. A source may return an error, change it
 
 ### Female neural voiceovers
 
-The production queue uses the `en-US-AriaNeural` female neural voice through the `edge-tts` Python package. Speech is synthesized online, decoded with `miniaudio` and wrapped as a WAV file with Python's standard `wave` module. No separate speech API key or FFmpeg installation is required. The Streamlit host must be able to reach the external speech service; availability and rate limits depend on that service. The app caches generated WAV data for the current session so a rerun does not make the same speech request again.
+The production queue uses the `en-GB-SoniaNeural` female British neural voice through the `edge-tts` Python package. The default delivery is slightly quicker (`+5%`) with a subtle pitch lift (`+1Hz`) for a bright, conversational radio-presenter feel. Script prompts also encourage natural British-English phrasing, contractions, varied sentence rhythm and playful asides. This is a distinct, original presenter profile; it does not clone Cara Delevingne or reproduce DJ Cara's exact voice. Speech is synthesized online, decoded with `miniaudio` and wrapped as a WAV file with Python's standard `wave` module. No separate speech API key or FFmpeg installation is required. The Streamlit host must be able to reach the external speech service; availability and rate limits depend on that service. The app caches generated WAV data by script and voice so a rerun does not make the same speech request again.
 
 ## Groq model configuration
 
