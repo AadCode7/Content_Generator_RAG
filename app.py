@@ -27,6 +27,8 @@ from gta_researcher.pipeline import analyze_pending_articles, run_research_cycle
 from gta_researcher.storage import ResearchStore
 from gta_researcher.speech import (
     DEFAULT_VOICE,
+    DEFAULT_RATE,
+    DEFAULT_PITCH,
     MIN_VOICEOVER_WORDS,
     VOICE_PROFILE_DESCRIPTION,
     VOICE_PROFILE_NAME,
