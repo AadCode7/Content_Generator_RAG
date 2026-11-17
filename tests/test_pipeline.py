@@ -54,6 +54,10 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(len(discoveries), 1)
         self.assertEqual(discoveries[0]["title"], "A useful GTA VI gameplay detail")
         self.assertEqual(discoveries[0]["status"], "new")
+        self.assertTrue(
+            discoveries[0]["script"].startswith(discoveries[0]["hook"]),
+            "The opening hook must be part of the spoken voiceover.",
+        )
 
     def test_failed_analysis_can_be_retried_and_recovers(self):
         class BrokenResearcher:

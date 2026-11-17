@@ -25,6 +25,14 @@ from gta_researcher.config import DEFAULT_MODEL, get_settings
 from gta_researcher.groq_service import GroqResearcher
 from gta_researcher.pipeline import analyze_pending_articles, run_research_cycle
 from gta_researcher.storage import ResearchStore
+from gta_researcher.speech import (
+    DEFAULT_VOICE,
+    MIN_VOICEOVER_WORDS,
+    compose_voiceover_text,
+    count_words,
+    estimate_duration_seconds,
+    generate_voiceover_wav,
+)
 from gta_researcher.video_editor import (
     PLATFORMS,
     TONES,
@@ -58,6 +66,12 @@ def read_secret_api_key() -> str:
 
 def get_researcher(api_key: str, model: str) -> GroqResearcher:
     return GroqResearcher(api_key=api_key, model=model)
+
+
+@st.cache_data(ttl=3600, max_entries=32, show_spinner=False)
+def cached_voiceover_wav(script: str) -> bytes:
+    """Cache generated audio for the current script to avoid repeated TTS requests."""
+    return generate_voiceover_wav(script, voice=DEFAULT_VOICE)
 
 
 def render_discovery(item: dict, api_key: str, model: str) -> None:
@@ -139,7 +153,7 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
             try:
                 with st.spinner("Generating a fresh script..."):
                     generated = get_researcher(api_key, model).generate_short_script(
-                        item, target_seconds=30
+                        item, target_seconds=65
                     )
                 store.update_discovery_script(
                     discovery_id,
@@ -427,6 +441,10 @@ with tabs[2]:
 
 with tabs[3]:
     st.subheader("Production queue")
+    st.write(
+        "Prepare approved ideas as one-minute voiceovers. Regenerate older short scripts, "
+        "download the text, or create a warm female neural-voice WAV."
+    )
     approved = store.list_discoveries(status="approved", limit=100)
     if not approved:
         st.info("Approve discoveries to add them to your production queue.")
@@ -434,19 +452,94 @@ with tabs[3]:
         with st.container(border=True):
             st.markdown(f"**{item['title']}**")
             st.caption(f"{item['series']} · Score {float(item['overall_score']):.1f}/10")
-            st.write(item.get("script", ""))
+            voiceover_text = compose_voiceover_text(
+                item.get("hook", ""), item.get("script", "")
+            )
+            script_words = count_words(voiceover_text)
+            duration_seconds = estimate_duration_seconds(voiceover_text)
+            st.markdown("**Voiceover script**")
+            st.write(voiceover_text or "No voiceover script has been saved yet.")
+            st.caption(
+                f"{script_words} words · Estimated {duration_seconds // 60}:"
+                f"{duration_seconds % 60:02d} at 135 words/minute"
+            )
             st.caption(f"Source: {item.get('source_url', '')}")
-            col1, col2 = st.columns(2)
-            with col1:
+
+            script_col, regenerate_col, audio_col, used_col = st.columns(4)
+            with script_col:
                 st.download_button(
-                    "Download voiceover script",
-                    data=item.get("script", ""),
+                    "Download script TXT",
+                    data=voiceover_text,
                     file_name=f"gta_vi_voiceover_{item['id']}.txt",
                     mime="text/plain",
                     key=f"queue_download_{item['id']}",
                     use_container_width=True,
+                    disabled=not voiceover_text,
                 )
-            with col2:
+
+            with regenerate_col:
+                if st.button(
+                    "Regenerate 60–75 sec script",
+                    key=f"queue_regenerate_{item['id']}",
+                    use_container_width=True,
+                    disabled=not api_key.strip(),
+                    help="Rewrite this approved idea with a stronger hook and at least 145 words.",
+                ):
+                    try:
+                        with st.spinner("Writing a stronger one-minute voiceover..."):
+                            generated = get_researcher(api_key, model).generate_short_script(
+                                item, target_seconds=65
+                            )
+                        store.update_discovery_script(
+                            item["id"],
+                            generated["hook"],
+                            generated["script"],
+                            generated["visual_notes"],
+                        )
+                        st.session_state.pop(f"voiceover_wav_{item['id']}", None)
+                        st.success("The longer voiceover script has been saved.")
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"Script regeneration failed: {type(exc).__name__}: {exc}")
+
+            with audio_col:
+                wav_key = f"voiceover_wav_{item['id']}"
+                if st.button(
+                    "Generate female WAV",
+                    key=f"queue_generate_wav_{item['id']}",
+                    use_container_width=True,
+                    disabled=script_words < MIN_VOICEOVER_WORDS,
+                    help=(
+                        "Regenerate the script first. At least 145 words are needed for "
+                        "a one-minute narration."
+                    ),
+                ):
+                    try:
+                        with st.spinner("Creating the female neural voiceover..."):
+                            st.session_state[wav_key] = cached_voiceover_wav(voiceover_text)
+                    except Exception as exc:
+                        st.error(f"WAV generation failed: {type(exc).__name__}: {exc}")
+
+                wav_data = st.session_state.get(wav_key)
+                if wav_data:
+                    st.download_button(
+                        "Download WAV",
+                        data=wav_data,
+                        file_name=f"gta_vi_voiceover_{item['id']}.wav",
+                        mime="audio/wav",
+                        key=f"queue_download_wav_{item['id']}",
+                        use_container_width=True,
+                    )
+                    st.audio(wav_data, format="audio/wav")
+                elif script_words < MIN_VOICEOVER_WORDS:
+                    st.caption(
+                        "This saved script is too short for a one-minute voiceover. "
+                        "Regenerate it first."
+                    )
+                else:
+                    st.caption("Voice: Aria · English (US) · female neural voice")
+
+            with used_col:
                 if st.button(
                     "Mark as used", key=f"used_{item['id']}", use_container_width=True
                 ):

@@ -11,7 +11,9 @@ The app runs on your laptop without local LLM inference. Text analysis and scrip
 - Store sources, article content and discoveries in SQLite.
 - Use Groq to extract up to three content ideas per article.
 - Score ideas for novelty, shareability and visual potential.
-- Generate hooks, 20-35 second voiceover drafts, visual notes and hashtags.
+- Generate curiosity-led, hook-first 150-180 word voiceovers designed for 60-80 seconds of narration.
+- Regenerate approved scripts in the production queue and download both TXT and WAV voiceovers.
+- Create a warm, expressive female English neural voiceover (Aria) with audio preview and WAV download; WAV conversion runs locally without FFmpeg.
 - Approve/reject ideas, edit scripts and download production-ready text files.
 - Add, enable and disable sources.
 - Keep the originating source URL attached to every idea.
@@ -40,6 +42,7 @@ This first version does not independently verify claims and does not run cross-s
     ├── .streamlit/
     ├── src/gta_researcher/
     │   ├── live_clips.py
+    │   ├── speech.py
     │   └── twitch_chat.py
     └── tests/
         ├── test_live_clips.py
@@ -52,6 +55,7 @@ This first version does not independently verify claims and does not run cross-s
 - FFmpeg installed and available on PATH for live recording and clip extraction.
 - Twitch username and a user OAuth token with the `chat:read` scope for the live chat reader.
 - An authorised direct media URL for the video input.
+- Outbound internet access from the Streamlit host for female neural speech synthesis.
 
 No NVIDIA GPU is required for the research dashboard or the initial clipper. faster-whisper transcription is optional and runs on CPU by default.
 
@@ -129,12 +133,16 @@ The default `tiny` model is intended to keep CPU and memory use modest. Larger m
 4. Add other RSS feeds or webpages when needed.
 5. Open Research dashboard and run a scan.
 6. Groq analyses collected article content and creates discoveries.
-7. Open Discoveries to read ideas, edit hooks/scripts, regenerate scripts and approve useful ideas.
-8. Open Production queue to download approved voiceover scripts and mark completed ideas as used.
+7. Open Discoveries to read ideas, edit hooks/scripts, regenerate 60-75 second scripts and approve useful ideas.
+8. Open Production queue. Older short scripts can be regenerated there. Download the TXT script, generate and preview the female neural WAV, then download the WAV file and mark completed ideas as used.
 9. Open Live Clips to preview candidate MP4s, inspect chat-spike statistics and transcripts, download files, and approve or reject candidates.
 10. In the selected clip's Video editing assistant, choose the video type, platform and tone, then generate the editing package. Review and edit the hook/caption/hashtags, copy the thumbnail and timeline guidance, and download the complete Markdown editing brief. The package is saved beside the clip as a `.editor.json` sidecar.
 
 The default sources are starting points. A source may return an error, change its feed URL, block automated requests or publish content that does not mention GTA VI in the title or summary. Add or disable sources as needed.
+
+### Female neural voiceovers
+
+The production queue uses the `en-US-AriaNeural` female neural voice through the `edge-tts` Python package. Speech is synthesized online, decoded with `miniaudio` and wrapped as a WAV file with Python's standard `wave` module. No separate speech API key or FFmpeg installation is required. The Streamlit host must be able to reach the external speech service; availability and rate limits depend on that service. The app caches generated WAV data for the current session so a rerun does not make the same speech request again.
 
 ## Groq model configuration
 

@@ -8,6 +8,7 @@ from gta_researcher.collectors import collect_source_articles
 from gta_researcher.models import ScanSummary
 from gta_researcher.scoring import fingerprint, score_discovery
 from gta_researcher.storage import ResearchStore
+from gta_researcher.speech import compose_voiceover_text
 
 
 def _as_text(value: Any, fallback: str = "") -> str:
@@ -37,7 +38,10 @@ def _normalize_discovery(
         "clip_angle": _as_text(raw.get("clip_angle"))[:1000],
         "series": _as_text(raw.get("series"), "Things You Missed in GTA VI")[:100],
         "hook": _as_text(raw.get("hook"))[:500],
-        "script": _as_text(raw.get("script"))[:6000],
+        "script": compose_voiceover_text(
+            _as_text(raw.get("hook"))[:500],
+            _as_text(raw.get("script"))[:6000],
+        )[:6000],
         "visual_notes": _as_text(raw.get("visual_notes"))[:2000],
         "hashtags": [
             _as_text(tag)[:60]
