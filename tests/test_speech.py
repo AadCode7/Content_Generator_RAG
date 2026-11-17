@@ -21,7 +21,7 @@ class SpeechTests(unittest.TestCase):
         self.assertEqual(DEFAULT_VOICE, "en-GB-SoniaNeural")
         self.assertEqual(DEFAULT_RATE, "+10%")
         self.assertEqual(DEFAULT_PITCH, "+1Hz")
-        self.assertEqual(VOICE_PROFILE_NAME, "Bright British radio presenter")
+        self.assertEqual(VOICE_PROFILE_NAME, "Fast-paced British gaming presenter")
         self.assertIn("British English", VOICE_PROFILE_DESCRIPTION)
 
     def test_compose_voiceover_adds_hook_once(self):

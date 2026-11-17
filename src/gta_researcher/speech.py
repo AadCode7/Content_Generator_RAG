@@ -69,14 +69,16 @@ def pcm_to_wav(
     return output.getvalue()
 
 
-async def _synthesize_mp3(text: str, voice: str) -> bytes:
+async def _synthesize_mp3(
+    text: str, voice: str, rate: str, pitch: str
+) -> bytes:
     import edge_tts
 
     communicate = edge_tts.Communicate(
         text,
         voice,
-        rate=DEFAULT_RATE,
-        pitch=DEFAULT_PITCH,
+        rate=rate,
+        pitch=pitch,
     )
     audio_parts: list[bytes] = []
     async for chunk in communicate.stream():
@@ -93,6 +95,8 @@ async def _synthesize_mp3(text: str, voice: str) -> bytes:
 def generate_voiceover_wav(
     text: str,
     voice: str = DEFAULT_VOICE,
+    rate: str = DEFAULT_RATE,
+    pitch: str = DEFAULT_PITCH,
 ) -> bytes:
     """Generate an energetic British female presenter voiceover as WAV audio."""
     narration = (text or "").strip()
@@ -102,9 +106,13 @@ def generate_voiceover_wav(
         raise ValueError("The voiceover is too long to synthesize in one request.")
     if not voice.strip():
         raise ValueError("A supported neural voice must be selected.")
+    if not rate.strip() or not pitch.strip():
+        raise ValueError("Speech rate and pitch settings must not be empty.")
 
     try:
-        mp3_audio = asyncio.run(_synthesize_mp3(narration, voice.strip()))
+        mp3_audio = asyncio.run(
+            _synthesize_mp3(narration, voice.strip(), rate.strip(), pitch.strip())
+        )
     except RuntimeError as exc:
         if "asyncio.run()" in str(exc):
             raise RuntimeError(
