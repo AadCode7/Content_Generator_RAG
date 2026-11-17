@@ -71,9 +71,14 @@ def get_researcher(api_key: str, model: str) -> GroqResearcher:
 
 
 @st.cache_data(ttl=3600, max_entries=32, show_spinner=False)
-def cached_voiceover_wav(script: str, voice: str = DEFAULT_VOICE) -> bytes:
-    """Cache generated audio by both script and voice to avoid stale voice previews."""
-    return generate_voiceover_wav(script, voice=voice)
+def cached_voiceover_wav(
+    script: str,
+    voice: str = DEFAULT_VOICE,
+    rate: str = DEFAULT_RATE,
+    pitch: str = DEFAULT_PITCH,
+) -> bytes:
+    """Cache by script, voice and prosody so old audio settings are never reused."""
+    return generate_voiceover_wav(script, voice=voice, rate=rate, pitch=pitch)
 
 
 def render_discovery(item: dict, api_key: str, model: str) -> None:
@@ -86,6 +91,8 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
         st.write(item.get("claim", ""))
         if item.get("explanation"):
             st.write(item["explanation"])
+        if item.get("player_takeaway"):
+            st.markdown(f"**Player takeaway:** {item['player_takeaway']}")
         st.markdown(f"**Why it is interesting:** {item.get('why_interesting') or 'Not specified'}")
         st.markdown(f"**Video angle:** {item.get('clip_angle') or 'Not specified'}")
         st.markdown(f"**Suggested hook:** {item.get('hook') or 'Not generated'}")
@@ -110,18 +117,29 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
         hook_key = f"hook_{discovery_id}"
         script_key = f"script_{discovery_id}"
         visual_key = f"visual_{discovery_id}"
+        player_takeaway_key = f"player_takeaway_{discovery_id}"
         pending_key = f"pending_generated_{discovery_id}"
         pending_generated = st.session_state.pop(pending_key, None)
         if pending_generated:
             st.session_state[hook_key] = pending_generated["hook"]
             st.session_state[script_key] = pending_generated["script"]
             st.session_state[visual_key] = pending_generated["visual_notes"]
+            st.session_state[player_takeaway_key] = pending_generated.get(
+                "player_takeaway", item.get("player_takeaway", "")
+            )
         st.text_input("Video hook", value=item.get("hook", ""), key=hook_key)
         st.text_area(
             "Voiceover script",
             value=item.get("script", ""),
             height=180,
             key=script_key,
+        )
+        st.text_area(
+            "Player takeaway / practical gameplay advice",
+            value=item.get("player_takeaway", ""),
+            height=100,
+            key=player_takeaway_key,
+            help="Keep this grounded in the source. Describe what players should do, watch for or avoid.",
         )
         st.text_area(
             "Editing / visual notes",
@@ -146,6 +164,7 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
                     st.session_state[hook_key],
                     st.session_state[script_key],
                     st.session_state[visual_key],
+                    player_takeaway=st.session_state[player_takeaway_key],
                 )
                 st.success("Changes saved.")
 
@@ -155,13 +174,14 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
             try:
                 with st.spinner("Generating a fresh script..."):
                     generated = get_researcher(api_key, model).generate_short_script(
-                        item, target_seconds=65
+                        item, target_seconds=70
                     )
                 store.update_discovery_script(
                     discovery_id,
                     generated["hook"],
                     generated["script"],
                     generated["visual_notes"],
+                    player_takeaway=generated["player_takeaway"],
                 )
                 st.session_state[pending_key] = generated
                 st.success("New script generated.")
@@ -444,8 +464,8 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("Production queue")
     st.write(
-        "Prepare approved ideas as one-minute voiceovers. Regenerate older short scripts, "
-        "download the text, or create a lively British female presenter WAV."
+        "Prepare approved ideas as fast-paced, player-first voiceovers. Each script explains "
+        "the Rockstar change, how it affects gameplay and a practical takeaway."
     )
     st.caption(
         f"Voice profile: {VOICE_PROFILE_NAME}. {VOICE_PROFILE_DESCRIPTION} "
@@ -467,8 +487,10 @@ with tabs[3]:
             st.write(voiceover_text or "No voiceover script has been saved yet.")
             st.caption(
                 f"{script_words} words · Estimated {duration_seconds // 60}:"
-                f"{duration_seconds % 60:02d} at 135 words/minute"
+                f"{duration_seconds % 60:02d} at {VOICEOVER_WORDS_PER_MINUTE} words/minute"
             )
+            if item.get("player_takeaway"):
+                st.info(f"**How to use this in gameplay:** {item['player_takeaway']}")
             st.caption(f"Source: {item.get('source_url', '')}")
 
             wav_key = f"voiceover_wav_{DEFAULT_VOICE}_{item['id']}"
@@ -486,22 +508,23 @@ with tabs[3]:
 
             with regenerate_col:
                 if st.button(
-                    "Regenerate 60–75 sec script",
+                    "Regenerate 70–80 sec gameplay script",
                     key=f"queue_regenerate_{item['id']}",
                     use_container_width=True,
                     disabled=not api_key.strip(),
-                    help="Rewrite this approved idea with a stronger hook and at least 145 words.",
+                    help="Rewrite this approved idea around the Rockstar change, player impact and a practical gameplay takeaway.",
                 ):
                     try:
                         with st.spinner("Writing a stronger one-minute voiceover..."):
                             generated = get_researcher(api_key, model).generate_short_script(
-                                item, target_seconds=65
+                                item, target_seconds=70
                             )
                         store.update_discovery_script(
                             item["id"],
                             generated["hook"],
                             generated["script"],
                             generated["visual_notes"],
+                            player_takeaway=generated["player_takeaway"],
                         )
                         st.session_state.pop(
                             f"voiceover_wav_{DEFAULT_VOICE}_{item['id']}", None
@@ -519,14 +542,14 @@ with tabs[3]:
                     use_container_width=True,
                     disabled=script_words < MIN_VOICEOVER_WORDS,
                     help=(
-                        "Regenerate the script first. At least 145 words are needed for "
+                        "Regenerate the script first. At least 150 words are needed for "
                         "a one-minute narration."
                     ),
                 ):
                     try:
                         with st.spinner("Creating the female neural voiceover..."):
                             st.session_state[wav_key] = cached_voiceover_wav(
-                                voiceover_text, DEFAULT_VOICE
+                                voiceover_text, DEFAULT_VOICE, DEFAULT_RATE, DEFAULT_PITCH
                             )
                     except Exception as exc:
                         st.error(f"WAV generation failed: {type(exc).__name__}: {exc}")

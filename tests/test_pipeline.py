@@ -13,6 +13,7 @@ class FakeResearcher:
             "category": "Gameplay mechanic",
             "claim": "The article describes a gameplay interaction.",
             "explanation": "A plain-language explanation.",
+            "player_takeaway": "Watch the enemy's position before choosing your route.",
             "evidence_type": "independently_reported",
             "confidence": 80,
             "why_interesting": "It could make a useful short video.",
@@ -54,6 +55,10 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(len(discoveries), 1)
         self.assertEqual(discoveries[0]["title"], "A useful GTA VI gameplay detail")
         self.assertEqual(discoveries[0]["status"], "new")
+        self.assertEqual(
+            discoveries[0]["player_takeaway"],
+            "Watch the enemy's position before choosing your route.",
+        )
         self.assertTrue(
             discoveries[0]["script"].startswith(discoveries[0]["hook"]),
             "The opening hook must be part of the spoken voiceover.",

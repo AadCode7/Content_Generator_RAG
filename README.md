@@ -11,7 +11,7 @@ The app runs on your laptop without local LLM inference. Text analysis and scrip
 - Store sources, article content and discoveries in SQLite.
 - Use Groq to extract up to three content ideas per article.
 - Score ideas for novelty, shareability and visual potential.
-- Generate curiosity-led, hook-first 150-180 word voiceovers designed for 60-80 seconds of narration.
+- Generate brisk, hook-first gameplay explainers that identify Rockstar's changes, explain player impact and give source-grounded practical takeaways, usually 175-200 words for about 70-80 seconds of narration.
 - Regenerate approved scripts in the production queue and download both TXT and WAV voiceovers.
 - Create a lively, conversational British female neural voiceover (Sonia) with audio preview and WAV download; WAV conversion runs locally without FFmpeg. The delivery profile uses broad radio-presenter traits and does not clone a real person's voice.
 - Approve/reject ideas, edit scripts and download production-ready text files.
@@ -133,8 +133,8 @@ The default `tiny` model is intended to keep CPU and memory use modest. Larger m
 4. Add other RSS feeds or webpages when needed.
 5. Open Research dashboard and run a scan.
 6. Groq analyses collected article content and creates discoveries.
-7. Open Discoveries to read ideas, edit hooks/scripts, regenerate 60-75 second scripts and approve useful ideas.
-8. Open Production queue. Older short scripts can be regenerated there. Download the TXT script, generate and preview the female neural WAV, then download the WAV file and mark completed ideas as used.
+7. Open Discoveries to read the source explanation and player takeaway, edit the hook/script/tip, regenerate a 70-80 second player-focused script and approve useful ideas.
+8. Open Production queue. Older scripts can be regenerated around the Rockstar change, player impact and practical gameplay tip. Download the TXT script, generate and preview the female neural WAV, then download the WAV file and mark completed ideas as used.
 9. Open Live Clips to preview candidate MP4s, inspect chat-spike statistics and transcripts, download files, and approve or reject candidates.
 10. In the selected clip's Video editing assistant, choose the video type, platform and tone, then generate the editing package. Review and edit the hook/caption/hashtags, copy the thumbnail and timeline guidance, and download the complete Markdown editing brief. The package is saved beside the clip as a `.editor.json` sidecar.
 
@@ -142,7 +142,7 @@ The default sources are starting points. A source may return an error, change it
 
 ### Female neural voiceovers
 
-The production queue uses the `en-GB-SoniaNeural` female British neural voice through the `edge-tts` Python package. The default delivery is slightly quicker (`+5%`) with a subtle pitch lift (`+1Hz`) for a bright, conversational radio-presenter feel. Script prompts also encourage natural British-English phrasing, contractions, varied sentence rhythm and playful asides. This is a distinct, original presenter profile; it does not clone Cara Delevingne or reproduce DJ Cara's exact voice. Speech is synthesized online, decoded with `miniaudio` and wrapped as a WAV file with Python's standard `wave` module. No separate speech API key or FFmpeg installation is required. The Streamlit host must be able to reach the external speech service; availability and rate limits depend on that service. The app caches generated WAV data by script and voice so a rerun does not make the same speech request again.
+The production queue uses the `en-GB-SoniaNeural` female British neural voice through the `edge-tts` Python package. The default delivery is quicker (`+10%`) with a subtle pitch lift (`+1Hz`) for a bright, brisk presenter feel. Script prompts focus on what Rockstar changed, what is better or different, how that affects player decisions and a practical, source-grounded gameplay takeaway. Narration is estimated at 150 words per minute. Scripts avoid repeated rhetorical questions and use no more than one brief closing question. This is a distinct, original presenter profile; it does not clone a real person or reproduce a character voice. Speech is synthesized online, decoded with `miniaudio` and wrapped as a WAV file with Python's standard `wave` module. No separate speech API key or FFmpeg installation is required. The Streamlit host must be able to reach the external speech service; availability and rate limits depend on that service. The app caches generated WAV data by script, voice and prosody so a rerun does not make the same speech request again.
 
 ## Groq model configuration
 

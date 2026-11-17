@@ -42,12 +42,17 @@ class StorageTests(unittest.TestCase):
             "title": "A GTA VI discovery",
             "claim": "A gameplay detail.",
             "script": "Here is the script.",
+            "player_takeaway": "Use cover before crossing an exposed area.",
             "hashtags": ["#GTAVI"],
             "overall_score": 7.5,
         })
         items = self.store.list_discoveries()
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]["hashtags"], ["#GTAVI"])
+        self.assertEqual(
+            items[0]["player_takeaway"],
+            "Use cover before crossing an exposed area.",
+        )
         self.assertEqual(items[0]["source_url"], "https://example.com/gta-vi-story")
 
     def test_similar_titles_are_not_suppressed(self):
@@ -66,6 +71,19 @@ class StorageTests(unittest.TestCase):
                 "claim": "Same claim", "overall_score": 8,
             })
         self.assertEqual(len(self.store.list_discoveries()), 2)
+
+    def test_player_takeaway_column_migrates_existing_database(self):
+        # Simulate a database created before the player_takeaway column existed.
+        with self.store.connect() as connection:
+            connection.execute("ALTER TABLE discoveries DROP COLUMN player_takeaway")
+
+        upgraded_store = ResearchStore(self.store.database_path)
+        with upgraded_store.connect() as connection:
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(discoveries)").fetchall()
+            }
+        self.assertIn("player_takeaway", columns)
 
     def test_article_status_counts_and_failed_article_details(self):
         source = self.store.list_sources()[0]

@@ -64,6 +64,7 @@ class ResearchStore:
                     category TEXT NOT NULL DEFAULT 'Gameplay detail',
                     claim TEXT NOT NULL DEFAULT '',
                     explanation TEXT NOT NULL DEFAULT '',
+                    player_takeaway TEXT NOT NULL DEFAULT '',
                     evidence_quote TEXT NOT NULL DEFAULT '',
                     evidence_type TEXT NOT NULL DEFAULT 'needs_verification',
                     evidence_supported INTEGER NOT NULL DEFAULT 0,
@@ -89,6 +90,15 @@ class ResearchStore:
                     ON discoveries(status, overall_score DESC);
                 """
             )
+            # Upgrade existing SQLite databases without dropping any saved discoveries.
+            discovery_columns = {
+                str(row["name"])
+                for row in connection.execute("PRAGMA table_info(discoveries)").fetchall()
+            }
+            if "player_takeaway" not in discovery_columns:
+                connection.execute(
+                    "ALTER TABLE discoveries ADD COLUMN player_takeaway TEXT NOT NULL DEFAULT ''"
+                )
 
     def seed_default_sources(self) -> None:
         for source in DEFAULT_SOURCES:
@@ -233,7 +243,8 @@ class ResearchStore:
         now = utc_now()
         values = (
             article_id, item["fingerprint"], item["title"], item.get("category", "Gameplay detail"),
-            item.get("claim", ""), item.get("explanation", ""), item.get("evidence_quote", ""),
+            item.get("claim", ""), item.get("explanation", ""),
+            item.get("player_takeaway", ""), item.get("evidence_quote", ""),
             item.get("evidence_type", "needs_verification"),
             1 if item.get("evidence_supported") else 0, item.get("why_interesting", ""),
             item.get("clip_angle", ""), item.get("series", "Things You Missed in GTA VI"),
@@ -248,11 +259,11 @@ class ResearchStore:
                 """
                 INSERT INTO discoveries (
                     article_id, fingerprint, title, category, claim, explanation,
-                    evidence_quote, evidence_type, evidence_supported, why_interesting,
+                    player_takeaway, evidence_quote, evidence_type, evidence_supported, why_interesting,
                     clip_angle, series, hook, script, visual_notes, hashtags_json,
                     novelty_score, shareability_score, visual_potential_score,
                     confidence, overall_score, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -301,16 +312,32 @@ class ResearchStore:
             )
 
     def update_discovery_script(
-        self, discovery_id: int, hook: str, script: str, visual_notes: str = ""
+        self,
+        discovery_id: int,
+        hook: str,
+        script: str,
+        visual_notes: str = "",
+        player_takeaway: str | None = None,
     ) -> None:
         with self.connect() as connection:
-            connection.execute(
-                """
-                UPDATE discoveries SET hook = ?, script = ?, visual_notes = ?, updated_at = ?
-                WHERE id = ?
-                """,
-                (hook, script, visual_notes, utc_now(), discovery_id),
-            )
+            if player_takeaway is None:
+                connection.execute(
+                    """
+                    UPDATE discoveries
+                    SET hook = ?, script = ?, visual_notes = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (hook, script, visual_notes, utc_now(), discovery_id),
+                )
+            else:
+                connection.execute(
+                    """
+                    UPDATE discoveries
+                    SET hook = ?, script = ?, visual_notes = ?, player_takeaway = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (hook, script, visual_notes, player_takeaway[:2500], utc_now(), discovery_id),
+                )
 
     def dashboard_counts(self) -> dict[str, int]:
         with self.connect() as connection:

@@ -31,6 +31,7 @@ def _normalize_discovery(
         "category": _as_text(raw.get("category"), "Gameplay detail")[:80],
         "claim": claim[:2000],
         "explanation": _as_text(raw.get("explanation"))[:4000],
+        "player_takeaway": _as_text(raw.get("player_takeaway"))[:2500],
         "evidence_quote": _as_text(raw.get("evidence_quote"))[:1500],
         "evidence_type": _as_text(raw.get("evidence_type"), "needs_verification")[:60],
         "evidence_supported": False,

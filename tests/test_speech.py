@@ -19,7 +19,7 @@ from gta_researcher.speech import (
 class SpeechTests(unittest.TestCase):
     def test_default_voice_is_british_female_neural_presenter(self):
         self.assertEqual(DEFAULT_VOICE, "en-GB-SoniaNeural")
-        self.assertEqual(DEFAULT_RATE, "+5%")
+        self.assertEqual(DEFAULT_RATE, "+10%")
         self.assertEqual(DEFAULT_PITCH, "+1Hz")
         self.assertEqual(VOICE_PROFILE_NAME, "Bright British radio presenter")
         self.assertIn("British English", VOICE_PROFILE_DESCRIPTION)
@@ -39,6 +39,7 @@ class SpeechTests(unittest.TestCase):
     def test_word_count_and_duration_estimate(self):
         script = " ".join(f"word{i}" for i in range(MIN_VOICEOVER_WORDS))
         self.assertEqual(count_words(script), MIN_VOICEOVER_WORDS)
+        self.assertEqual(VOICEOVER_WORDS_PER_MINUTE, 150)
         self.assertGreaterEqual(estimate_duration_seconds(script), 60)
 
     def test_pcm_to_wav_creates_valid_mono_pcm_wav(self):

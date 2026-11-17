@@ -9,16 +9,16 @@ import wave
 from typing import Any
 
 DEFAULT_VOICE = "en-GB-SoniaNeural"
-DEFAULT_RATE = "+5%"
+DEFAULT_RATE = "+10%"
 DEFAULT_PITCH = "+1Hz"
-VOICE_PROFILE_NAME = "Bright British radio presenter"
+VOICE_PROFILE_NAME = "Fast-paced British gaming presenter"
 VOICE_PROFILE_DESCRIPTION = (
-    "British English female voice, lively and conversational, with a slightly quicker "
-    "presenter cadence, clear articulation and a lightly lifted pitch."
+    "British English female voice with a brisk, lively presenter cadence, clear articulation, "
+    "confident delivery and a lightly lifted pitch."
 )
 SAMPLE_RATE = 24_000
-MIN_VOICEOVER_WORDS = 145
-VOICEOVER_WORDS_PER_MINUTE = 135
+MIN_VOICEOVER_WORDS = 150
+VOICEOVER_WORDS_PER_MINUTE = 150
 
 
 def count_words(text: str) -> int:
@@ -40,7 +40,7 @@ def compose_voiceover_text(hook: str, script: str) -> str:
 
 
 def estimate_duration_seconds(text: str) -> int:
-    """Estimate narration duration at a conversational 135 words per minute."""
+    """Estimate narration duration at the configured 150 words per minute."""
     return round(count_words(text) * 60 / VOICEOVER_WORDS_PER_MINUTE)
 
 
