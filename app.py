@@ -258,6 +258,9 @@ with tabs[0]:
                 "model": model.strip(),
                 "error": f"{type(exc).__name__}: {exc}",
             }
+        # The result is now safely stored in session state, so this rerun
+        # refreshes the dashboard metrics without discarding the scan summary.
+        st.rerun()
 
     if st.button(
         "Analyse pending articles / retry failed analyses",
@@ -291,6 +294,8 @@ with tabs[0]:
                 "model": model.strip(),
                 "error": f"{type(exc).__name__}: {exc}",
             }
+        # Keep the result in session state before refreshing the article counts.
+        st.rerun()
 
     last_run = st.session_state.get("last_research_run")
     if last_run:
