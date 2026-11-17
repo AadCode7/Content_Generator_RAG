@@ -9,6 +9,7 @@ from gta_researcher.speech import (
     VOICE_PROFILE_NAME,
     VOICE_PROFILE_DESCRIPTION,
     MIN_VOICEOVER_WORDS,
+    VOICEOVER_WORDS_PER_MINUTE,
     compose_voiceover_text,
     count_words,
     estimate_duration_seconds,
