@@ -67,6 +67,36 @@ class StorageTests(unittest.TestCase):
             })
         self.assertEqual(len(self.store.list_discoveries()), 2)
 
+    def test_article_status_counts_and_failed_article_details(self):
+        source = self.store.list_sources()[0]
+        article_ids = {}
+        for name, url in (
+            ("Pending article", "https://example.com/pending"),
+            ("Failed article", "https://example.com/failed"),
+            ("Processed article", "https://example.com/processed"),
+        ):
+            article_ids[name], _ = self.store.save_article({
+                "source_id": source["id"],
+                "url": url,
+                "title": name,
+                "content": "GTA VI article content",
+            })
+
+        self.store.set_article_ai_status(
+            article_ids["Failed article"], "failed", "Groq rate limit exceeded"
+        )
+        self.store.set_article_ai_status(article_ids["Processed article"], "processed")
+
+        self.assertEqual(
+            self.store.article_status_counts(),
+            {"pending": 1, "failed": 1, "processed": 1},
+        )
+        failed = self.store.list_failed_articles()
+        self.assertEqual(len(failed), 1)
+        self.assertEqual(failed[0]["title"], "Failed article")
+        self.assertEqual(failed[0]["source_name"], source["name"])
+        self.assertEqual(failed[0]["ai_error"], "Groq rate limit exceeded")
+
 
 if __name__ == "__main__":
     unittest.main()

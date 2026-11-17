@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -216,52 +217,149 @@ with tabs[0]:
         "Scan configured websites and RSS feeds. Groq extracts ideas, explains them in simple "
         "language, scores their content potential and drafts short-form scripts."
     )
-    pending_count = len(store.list_pending_articles(limit=200))
-    st.metric("Articles waiting for AI analysis", pending_count)
+    article_counts = store.article_status_counts()
+    pending_count = article_counts["pending"]
+    failed_count = article_counts["failed"]
+    retryable_count = pending_count + failed_count
+
+    status_cols = st.columns(2)
+    status_cols[0].metric("Articles waiting for AI analysis", pending_count)
+    status_cols[1].metric("Failed analyses", failed_count)
 
     if st.button(
         "🔎 Scan sources and research new articles",
         type="primary",
         use_container_width=True,
         disabled=not api_key.strip(),
+        help="Collect configured sources, save new articles and analyse pending or previously failed articles with Groq.",
     ):
+        st.session_state["last_research_run"] = {
+            "status": "running",
+            "kind": "full",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "model": model.strip(),
+        }
         try:
             researcher = get_researcher(api_key, model)
             with st.spinner("Collecting articles and generating video ideas with Groq..."):
                 result = run_research_cycle(store, settings, researcher)
-            st.success(
-                f"Checked {result.sources_checked} sources, found "
-                f"{result.articles_found} article entries, analysed "
-                f"{result.articles_analyzed} articles and saved "
-                f"{result.discoveries_saved} ideas."
-            )
-            for error in result.errors or []:
-                st.warning(error)
-            st.rerun()
+            st.session_state["last_research_run"] = {
+                "status": "completed",
+                "kind": "full",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "model": model.strip(),
+                "summary": asdict(result),
+            }
         except Exception as exc:
-            st.error(f"Research cycle failed: {type(exc).__name__}: {exc}")
+            st.session_state["last_research_run"] = {
+                "status": "failed",
+                "kind": "full",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "model": model.strip(),
+                "error": f"{type(exc).__name__}: {exc}",
+            }
 
     if st.button(
-        "Analyse pending articles only",
+        "Analyse pending articles / retry failed analyses",
         use_container_width=True,
-        disabled=not api_key.strip() or pending_count == 0,
+        disabled=not api_key.strip() or retryable_count == 0,
+        help="Analyse new articles and retry articles whose previous Groq analysis failed.",
     ):
+        st.session_state["last_research_run"] = {
+            "status": "running",
+            "kind": "analysis",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "model": model.strip(),
+        }
         try:
-            from gta_researcher.pipeline import analyze_pending_articles
-
             with st.spinner("Generating discoveries with Groq..."):
                 result = analyze_pending_articles(
                     store, get_researcher(api_key, model), limit=30
                 )
-            st.success(
-                f"Analysed {result.articles_analyzed} articles and saved "
-                f"{result.discoveries_saved} ideas."
-            )
-            for error in result.errors or []:
-                st.warning(error)
-            st.rerun()
+            st.session_state["last_research_run"] = {
+                "status": "completed",
+                "kind": "analysis",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "model": model.strip(),
+                "summary": asdict(result),
+            }
         except Exception as exc:
-            st.error(f"Analysis failed: {type(exc).__name__}: {exc}")
+            st.session_state["last_research_run"] = {
+                "status": "failed",
+                "kind": "analysis",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "model": model.strip(),
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+
+    last_run = st.session_state.get("last_research_run")
+    if last_run:
+        with st.container(border=True):
+            run_title = (
+                "Last source scan" if last_run.get("kind") == "full"
+                else "Last article analysis"
+            )
+            st.markdown(f"**{run_title}**")
+            completed_at = last_run.get("completed_at") or last_run.get("started_at")
+            if completed_at:
+                try:
+                    display_time = datetime.fromisoformat(
+                        completed_at.replace("Z", "+00:00")
+                    ).astimezone().strftime("%d %b %Y, %I:%M:%S %p %Z")
+                except (TypeError, ValueError):
+                    display_time = completed_at
+                st.caption(f"Updated {display_time} · Model: {last_run.get('model') or 'Unknown'}")
+
+            if last_run.get("status") == "running":
+                st.info("Research is running. Its result will appear here when the operation finishes.")
+            elif last_run.get("status") == "failed":
+                st.error(f"Research operation failed: {last_run.get('error', 'Unknown error')}")
+            elif last_run.get("status") == "completed":
+                summary = last_run.get("summary", {})
+                if last_run.get("kind") == "full":
+                    st.success(
+                        f"Checked {summary.get('sources_checked', 0)} sources, found "
+                        f"{summary.get('articles_found', 0)} article entries "
+                        f"({summary.get('articles_new', 0)} new), analysed "
+                        f"{summary.get('articles_analyzed', 0)} articles and saved "
+                        f"{summary.get('discoveries_saved', 0)} ideas."
+                    )
+                else:
+                    st.success(
+                        f"Analysed {summary.get('articles_analyzed', 0)} articles and saved "
+                        f"{summary.get('discoveries_saved', 0)} ideas."
+                    )
+                errors = summary.get("errors") or []
+                if errors:
+                    st.warning(
+                        f"{len(errors)} source or article operation(s) reported an error. "
+                        "The details are available below."
+                    )
+                    with st.expander("View scan and analysis errors", expanded=True):
+                        for error in errors:
+                            st.error(error)
+                elif (
+                    summary.get("articles_analyzed", 0) == 0
+                    and summary.get("discoveries_saved", 0) == 0
+                ):
+                    st.info(
+                        "The run completed without saved ideas. Check that sources are active, "
+                        "that they contain GTA VI-related content and that articles have readable text."
+                    )
+
+    failed_articles = store.list_failed_articles(limit=30)
+    if failed_count:
+        with st.expander(f"Failed article analyses ({failed_count})", expanded=False):
+            if not failed_articles:
+                st.info("No failed article records were returned.")
+            for failed_article in failed_articles:
+                st.markdown(f"**{failed_article.get('title') or 'Untitled article'}**")
+                st.caption(
+                    f"{failed_article.get('source_name', 'Unknown source')} · "
+                    f"{failed_article.get('url', '')}"
+                )
+                st.error(failed_article.get("ai_error") or "No error details were recorded.")
+                st.divider()
 
     st.subheader("Highest-scoring new ideas")
     recent = store.list_discoveries(status="new", limit=8)

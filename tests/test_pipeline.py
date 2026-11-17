@@ -55,6 +55,29 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(discoveries[0]["title"], "A useful GTA VI gameplay detail")
         self.assertEqual(discoveries[0]["status"], "new")
 
+    def test_failed_analysis_can_be_retried_and_recovers(self):
+        class BrokenResearcher:
+            def analyze_article(self, article):
+                raise RuntimeError("Groq rate limit exceeded")
+
+        first_result = analyze_pending_articles(self.store, BrokenResearcher())
+        self.assertEqual(first_result.articles_analyzed, 0)
+        self.assertEqual(len(first_result.errors), 1)
+        self.assertIn("Groq rate limit exceeded", first_result.errors[0])
+
+        failed_articles = self.store.list_failed_articles()
+        self.assertEqual(len(failed_articles), 1)
+        self.assertIn("Groq rate limit exceeded", failed_articles[0]["ai_error"])
+
+        retry_result = analyze_pending_articles(self.store, FakeResearcher())
+        self.assertEqual(retry_result.articles_analyzed, 1)
+        self.assertEqual(retry_result.discoveries_saved, 1)
+        self.assertEqual(self.store.list_failed_articles(), [])
+        self.assertEqual(
+            self.store.article_status_counts(),
+            {"pending": 0, "failed": 0, "processed": 1},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

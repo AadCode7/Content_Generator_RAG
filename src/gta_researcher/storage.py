@@ -179,6 +179,7 @@ class ResearchStore:
             return int(cursor.lastrowid), True
 
     def list_pending_articles(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Return articles that are pending or failed and can be analysed/retried."""
         with self.connect() as connection:
             rows = connection.execute(
                 """
@@ -187,11 +188,38 @@ class ResearchStore:
                 WHERE a.ai_status IN ('pending', 'failed')
                 ORDER BY a.fetched_at DESC LIMIT ?
                 """,
-                (limit,),
+                (max(1, min(500, int(limit))),),
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def set_article_ai_status(self, article_id: int, status: str, error: str = "") -> None:
+    def article_status_counts(self) -> dict[str, int]:
+        """Return article totals grouped by AI processing state."""
+        counts = {"pending": 0, "failed": 0, "processed": 0}
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT ai_status, COUNT(*) AS total FROM articles GROUP BY ai_status"
+            ).fetchall()
+        for row in rows:
+            status = str(row["ai_status"])
+            if status in counts:
+                counts[status] = int(row["total"])
+        return counts
+
+    def list_failed_articles(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Return failed article analyses with source names and stored error details."""
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT a.*, s.name AS source_name FROM articles a
+                JOIN sources s ON s.id = a.source_id
+                WHERE a.ai_status = 'failed'
+                ORDER BY a.fetched_at DESC LIMIT ?
+                """,
+                (max(1, min(500, int(limit))),),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def set_article_ai_status(self, article_id: int, status: str, error: str = "") -> None;
         if status not in {"pending", "processed", "failed"}:
             raise ValueError("Invalid article analysis state.")
         with self.connect() as connection:
