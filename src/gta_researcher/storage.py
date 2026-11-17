@@ -219,7 +219,7 @@ class ResearchStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def set_article_ai_status(self, article_id: int, status: str, error: str = "") -> None;
+    def set_article_ai_status(self, article_id: int, status: str, error: str = "") -> None:
         if status not in {"pending", "processed", "failed"}:
             raise ValueError("Invalid article analysis state.")
         with self.connect() as connection:
