@@ -43,17 +43,41 @@ class StorageTests(unittest.TestCase):
             "claim": "A gameplay detail.",
             "script": "Here is the script.",
             "player_takeaway": "Use cover before crossing an exposed area.",
-            "hashtags": ["#GTAVI"],
+            "caption": "Rockstar changed the way this encounter plays out.",
+            "description": "A new detail could change how players approach this situation.",
+            "mentions": ["@rockstargames"],
+            "hashtags": ["#GTAVI", "#GTA6"],
             "overall_score": 7.5,
         })
         items = self.store.list_discoveries()
         self.assertEqual(len(items), 1)
-        self.assertEqual(items[0]["hashtags"], ["#GTAVI"])
+        self.assertEqual(items[0]["hashtags"], ["#GTAVI", "#GTA6"])
+        self.assertEqual(
+            items[0]["caption"],
+            "Rockstar changed the way this encounter plays out.",
+        )
+        self.assertEqual(
+            items[0]["description"],
+            "A new detail could change how players approach this situation.",
+        )
+        self.assertEqual(items[0]["mentions"], ["@rockstargames"])
         self.assertEqual(
             items[0]["player_takeaway"],
             "Use cover before crossing an exposed area.",
         )
         self.assertEqual(items[0]["source_url"], "https://example.com/gta-vi-story")
+        self.store.update_discovery_publish_copy(
+            items[0]["id"],
+            "Updated caption",
+            "Updated description",
+            ["@RockstarGames", "@gta"],
+            ["#GTAVI"],
+        )
+        updated = self.store.get_discovery(items[0]["id"])
+        self.assertEqual(updated["caption"], "Updated caption")
+        self.assertEqual(updated["description"], "Updated description")
+        self.assertEqual(updated["mentions"], ["@RockstarGames", "@gta"])
+        self.assertEqual(updated["hashtags"], ["#GTAVI"])
 
     def test_similar_titles_are_not_suppressed(self):
         source = self.store.list_sources()[0]
@@ -75,7 +99,15 @@ class StorageTests(unittest.TestCase):
     def test_player_takeaway_column_migrates_existing_database(self):
         # Simulate a database created before the player_takeaway column existed.
         with self.store.connect() as connection:
-            connection.execute("ALTER TABLE discoveries DROP COLUMN player_takeaway")
+            for column_name in (
+                "player_takeaway",
+                "caption",
+                "description",
+                "mentions_json",
+            ):
+                connection.execute(
+                    f"ALTER TABLE discoveries DROP COLUMN {column_name}"
+                )
 
         upgraded_store = ResearchStore(self.store.database_path)
         with upgraded_store.connect() as connection:
@@ -84,6 +116,9 @@ class StorageTests(unittest.TestCase):
                 for row in connection.execute("PRAGMA table_info(discoveries)").fetchall()
             }
         self.assertIn("player_takeaway", columns)
+        self.assertIn("caption", columns)
+        self.assertIn("description", columns)
+        self.assertIn("mentions_json", columns)
 
     def test_article_status_counts_and_failed_article_details(self):
         source = self.store.list_sources()[0]
