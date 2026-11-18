@@ -32,6 +32,7 @@ from gta_researcher.speech import (
     MIN_VOICEOVER_WORDS,
     VOICE_PROFILE_DESCRIPTION,
     VOICE_PROFILE_NAME,
+    VOICE_OPTIONS,
     VOICEOVER_WORDS_PER_MINUTE,
     compose_voiceover_text,
     count_words,
@@ -121,6 +122,10 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
         script_key = f"script_{discovery_id}"
         visual_key = f"visual_{discovery_id}"
         player_takeaway_key = f"player_takeaway_{discovery_id}"
+        caption_key = f"caption_{discovery_id}"
+        description_key = f"description_{discovery_id}"
+        mentions_key = f"mentions_{discovery_id}"
+        hashtags_key = f"hashtags_{discovery_id}"
         pending_key = f"pending_generated_{discovery_id}"
         pending_generated = st.session_state.pop(pending_key, None)
         if pending_generated:
@@ -129,6 +134,16 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
             st.session_state[visual_key] = pending_generated["visual_notes"]
             st.session_state[player_takeaway_key] = pending_generated.get(
                 "player_takeaway", item.get("player_takeaway", "")
+            )
+            st.session_state[caption_key] = pending_generated.get("caption", item.get("caption", ""))
+            st.session_state[description_key] = pending_generated.get(
+                "description", item.get("description", "")
+            )
+            st.session_state[mentions_key] = " ".join(
+                pending_generated.get("mentions", item.get("mentions", []))
+            )
+            st.session_state[hashtags_key] = " ".join(
+                pending_generated.get("hashtags", item.get("hashtags", []))
             )
         st.text_input("Video hook", value=item.get("hook", ""), key=hook_key)
         st.text_area(
@@ -150,6 +165,24 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
             height=100,
             key=visual_key,
         )
+        st.text_input("Reel caption", value=item.get("caption", ""), key=caption_key)
+        st.text_area(
+            "Post description",
+            value=item.get("description", ""),
+            height=110,
+            key=description_key,
+        )
+        st.text_input(
+            "Suggested mentions (space-separated)",
+            value=" ".join(item.get("mentions", [])),
+            key=mentions_key,
+            help="Only suggested handles are shown. Check each account before tagging.",
+        )
+        st.text_input(
+            "Hashtags",
+            value=" ".join(item.get("hashtags", [])),
+            key=hashtags_key,
+        )
 
         left, middle, right = st.columns(3)
         with left:
@@ -169,6 +202,13 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
                     st.session_state[visual_key],
                     player_takeaway=st.session_state[player_takeaway_key],
                 )
+                store.update_discovery_publish_copy(
+                    discovery_id,
+                    st.session_state[caption_key],
+                    st.session_state[description_key],
+                    st.session_state[mentions_key].split(),
+                    st.session_state[hashtags_key].split(),
+                )
                 st.success("Changes saved.")
 
         if api_key.strip() and st.button(
@@ -186,6 +226,13 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
                     generated["visual_notes"],
                     player_takeaway=generated["player_takeaway"],
                 )
+                store.update_discovery_publish_copy(
+                    discovery_id,
+                    generated["caption"],
+                    generated["description"],
+                    generated["mentions"],
+                    generated["hashtags"],
+                )
                 st.session_state[pending_key] = generated
                 st.success("New script generated.")
                 st.rerun()
@@ -193,10 +240,15 @@ def render_discovery(item: dict, api_key: str, model: str) -> None:
                 st.error(f"Script generation failed: {type(exc).__name__}: {exc}")
 
         st.download_button(
-            "Download script as TXT",
+            "Download script + publishing copy as TXT",
             data=(
-                f"{item.get('hook', '')}\n\n{item.get('script', '')}\n\n"
-                f"Visual notes: {item.get('visual_notes', '')}\n\n"
+                f"REEL CAPTION\n{item.get('caption', '')}\n\n"
+                f"POST DESCRIPTION\n{item.get('description', '')}\n\n"
+                f"MENTIONS\n{' '.join(item.get('mentions', []))}\n\n"
+                f"HASHTAGS\n{' '.join(item.get('hashtags', []))}\n\n"
+                f"VOICEOVER\n{compose_voiceover_text(item.get('hook', ''), item.get('script', ''))}\n\n"
+                f"VISUAL NOTES\n{item.get('visual_notes', '')}\n\n"
+                f"PLAYER TAKEAWAY\n{item.get('player_takeaway', '')}\n\n"
                 f"Source: {source_url}\n"
             ),
             file_name=f"gta_vi_script_{discovery_id}.txt",
@@ -471,8 +523,9 @@ with tabs[3]:
         "the Rockstar change, how it affects gameplay and a practical takeaway."
     )
     st.caption(
-        f"Voice profile: {VOICE_PROFILE_NAME}. {VOICE_PROFILE_DESCRIPTION} "
-        "This is an original presenter profile, not a recreation of a specific person."
+        f"Default voice: {VOICE_PROFILE_NAME}. {VOICE_PROFILE_DESCRIPTION} "
+        "The exact voice of a specific character or public figure is not reproduced. "
+        "You can switch between the available female voices on each queue item."
     )
     approved = store.list_discoveries(status="approved", limit=100)
     if not approved:
@@ -496,7 +549,82 @@ with tabs[3]:
                 st.info(f"**How to use this in gameplay:** {item['player_takeaway']}")
             st.caption(f"Source: {item.get('source_url', '')}")
 
-            wav_key = f"voiceover_wav_{DEFAULT_VOICE}_{item['id']}"
+            voice_labels = list(VOICE_OPTIONS)
+            default_voice_label = next(
+                label for label, voice_id in VOICE_OPTIONS.items()
+                if voice_id == DEFAULT_VOICE
+            )
+            voice_label = st.selectbox(
+                "Voice",
+                voice_labels,
+                index=voice_labels.index(default_voice_label),
+                key=f"queue_voice_{item['id']}",
+            )
+            selected_voice = VOICE_OPTIONS[voice_label]
+            wav_key = f"voiceover_wav_{selected_voice}_{item['id']}"
+
+            with st.expander("Instagram publishing copy", expanded=True):
+                queue_caption_key = f"queue_caption_{item['id']}"
+                queue_description_key = f"queue_description_{item['id']}"
+                queue_mentions_key = f"queue_mentions_{item['id']}"
+                queue_hashtags_key = f"queue_hashtags_{item['id']}"
+                st.text_input(
+                    "Reel caption",
+                    value=item.get("caption", ""),
+                    key=queue_caption_key,
+                )
+                st.text_area(
+                    "Post description",
+                    value=item.get("description", ""),
+                    height=115,
+                    key=queue_description_key,
+                )
+                st.text_input(
+                    "Suggested mentions",
+                    value=" ".join(item.get("mentions", [])),
+                    key=queue_mentions_key,
+                    help="Suggested handles only. Check that each account is correct before tagging.",
+                )
+                st.text_input(
+                    "Hashtags",
+                    value=" ".join(item.get("hashtags", [])),
+                    key=queue_hashtags_key,
+                )
+                save_copy_col, download_copy_col = st.columns(2)
+                with save_copy_col:
+                    if st.button(
+                        "Save publishing copy",
+                        key=f"queue_save_copy_{item['id']}",
+                        use_container_width=True,
+                    ):
+                        store.update_discovery_publish_copy(
+                            item["id"],
+                            st.session_state[queue_caption_key],
+                            st.session_state[queue_description_key],
+                            st.session_state[queue_mentions_key].split(),
+                            st.session_state[queue_hashtags_key].split(),
+                        )
+                        st.success("Publishing copy saved.")
+                        st.rerun()
+                with download_copy_col:
+                    publishing_pack = (
+                        f"CAPTION\n{st.session_state.get(queue_caption_key, item.get('caption', ''))}\n\n"
+                        f"DESCRIPTION\n{st.session_state.get(queue_description_key, item.get('description', ''))}\n\n"
+                        f"MENTIONS\n{st.session_state.get(queue_mentions_key, ' '.join(item.get('mentions', [])))}\n\n"
+                        f"HASHTAGS\n{st.session_state.get(queue_hashtags_key, ' '.join(item.get('hashtags', [])))}\n\n"
+                        f"VOICEOVER\n{voiceover_text}\n\n"
+                        f"PLAYER TAKEAWAY\n{item.get('player_takeaway', '')}\n\n"
+                        f"SOURCE\n{item.get('source_url', '')}\n"
+                    )
+                    st.download_button(
+                        "Download reel publishing pack",
+                        data=publishing_pack,
+                        file_name=f"gta_vi_reel_pack_{item['id']}.txt",
+                        mime="text/plain",
+                        key=f"queue_download_pack_{item['id']}",
+                        use_container_width=True,
+                    )
+
             script_col, regenerate_col, audio_col, used_col = st.columns(4)
             with script_col:
                 st.download_button(
@@ -511,7 +639,7 @@ with tabs[3]:
 
             with regenerate_col:
                 if st.button(
-                    "Regenerate 70–80 sec gameplay script",
+                    "Regenerate 70-sec voiceover + publishing copy",
                     key=f"queue_regenerate_{item['id']}",
                     use_container_width=True,
                     disabled=not api_key.strip(),
@@ -529,18 +657,26 @@ with tabs[3]:
                             generated["visual_notes"],
                             player_takeaway=generated["player_takeaway"],
                         )
-                        st.session_state.pop(
-                            f"voiceover_wav_{DEFAULT_VOICE}_{item['id']}", None
+                        store.update_discovery_publish_copy(
+                            item["id"],
+                            generated["caption"],
+                            generated["description"],
+                            generated["mentions"],
+                            generated["hashtags"],
                         )
+                        for voice_id in VOICE_OPTIONS.values():
+                            st.session_state.pop(
+                                f"voiceover_wav_{voice_id}_{item['id']}", None
+                            )
                         st.session_state.pop(f"voiceover_wav_{item['id']}", None)
-                        st.success("The longer voiceover script has been saved.")
+                        st.success("The longer voiceover and publishing copy have been saved.")
                         st.rerun()
                     except Exception as exc:
                         st.error(f"Script regeneration failed: {type(exc).__name__}: {exc}")
 
             with audio_col:
                 if st.button(
-                    "Generate British presenter WAV",
+                    "Generate voiceover WAV",
                     key=f"queue_generate_wav_{item['id']}",
                     use_container_width=True,
                     disabled=script_words < MIN_VOICEOVER_WORDS,
@@ -552,7 +688,7 @@ with tabs[3]:
                     try:
                         with st.spinner("Creating the female neural voiceover..."):
                             st.session_state[wav_key] = cached_voiceover_wav(
-                                voiceover_text, DEFAULT_VOICE, DEFAULT_RATE, DEFAULT_PITCH
+                                voiceover_text, selected_voice, DEFAULT_RATE, DEFAULT_PITCH
                             )
                     except Exception as exc:
                         st.error(f"WAV generation failed: {type(exc).__name__}: {exc}")
@@ -575,7 +711,7 @@ with tabs[3]:
                     )
                 else:
                     st.caption(
-                        f"Voice: {DEFAULT_VOICE} · female neural voice · "
+                        f"Voice: {selected_voice} · female neural voice · "
                         f"{DEFAULT_RATE} rate · {DEFAULT_PITCH} pitch"
                     )
 
