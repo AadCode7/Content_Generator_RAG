@@ -32,6 +32,13 @@ def _normalize_discovery(
         "claim": claim[:2000],
         "explanation": _as_text(raw.get("explanation"))[:4000],
         "player_takeaway": _as_text(raw.get("player_takeaway"))[:2500],
+        "caption": _as_text(raw.get("caption"))[:500],
+        "description": _as_text(raw.get("description"))[:3000],
+        "mentions": [
+            _as_text(handle)[:32]
+            for handle in raw.get("mentions", [])
+            if re.fullmatch(r"@[A-Za-z0-9._]{1,30}", _as_text(handle))
+        ][:8] if isinstance(raw.get("mentions", []), list) else [],
         "evidence_quote": _as_text(raw.get("evidence_quote"))[:1500],
         "evidence_type": _as_text(raw.get("evidence_type"), "needs_verification")[:60],
         "evidence_supported": False,
