@@ -6,6 +6,7 @@ from gta_researcher.speech import (
     DEFAULT_VOICE,
     DEFAULT_RATE,
     DEFAULT_PITCH,
+    VOICE_OPTIONS,
     VOICE_PROFILE_NAME,
     VOICE_PROFILE_DESCRIPTION,
     MIN_VOICEOVER_WORDS,
@@ -18,12 +19,17 @@ from gta_researcher.speech import (
 
 
 class SpeechTests(unittest.TestCase):
-    def test_default_voice_is_british_female_neural_presenter(self):
-        self.assertEqual(DEFAULT_VOICE, "en-GB-SoniaNeural")
-        self.assertEqual(DEFAULT_RATE, "+10%")
-        self.assertEqual(DEFAULT_PITCH, "+1Hz")
-        self.assertEqual(VOICE_PROFILE_NAME, "Fast-paced British gaming presenter")
-        self.assertIn("British English", VOICE_PROFILE_DESCRIPTION)
+    def test_default_voice_is_conversational_radio_presenter(self):
+        self.assertEqual(DEFAULT_VOICE, "en-GB-LibbyNeural")
+        self.assertEqual(DEFAULT_RATE, "+7%")
+        self.assertEqual(DEFAULT_PITCH, "-1Hz")
+        self.assertEqual(
+            VOICE_PROFILE_NAME,
+            "Conversational British female radio voice",
+        )
+        self.assertIn("British female", VOICE_PROFILE_DESCRIPTION)
+        self.assertIn("en-US-JennyNeural", VOICE_OPTIONS.values())
+        self.assertIn("en-GB-MaisieNeural", VOICE_OPTIONS.values())
 
     def test_compose_voiceover_adds_hook_once(self):
         hook = "Wait until you notice this detail."
@@ -40,7 +46,7 @@ class SpeechTests(unittest.TestCase):
     def test_word_count_and_duration_estimate(self):
         script = " ".join(f"word{i}" for i in range(MIN_VOICEOVER_WORDS))
         self.assertEqual(count_words(script), MIN_VOICEOVER_WORDS)
-        self.assertEqual(VOICEOVER_WORDS_PER_MINUTE, 150)
+        self.assertEqual(VOICEOVER_WORDS_PER_MINUTE, 175)
         self.assertGreaterEqual(estimate_duration_seconds(script), 60)
 
     def test_pcm_to_wav_creates_valid_mono_pcm_wav(self):
