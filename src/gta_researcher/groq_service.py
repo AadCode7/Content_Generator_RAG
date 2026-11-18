@@ -31,7 +31,7 @@ When the source does not support a practical gameplay tip, say so in player_take
 what players should watch for rather than manufacturing advice.
 
 The voiceover script must inform players, not just tease a mystery:
-- Write 165-190 spoken words, roughly 66-76 seconds at a brisk 150 words per minute.
+- Write 200-225 spoken words, targeting at least 70 seconds at a brisk delivery pace.
 - Start with a strong hook that names the Rockstar change or the gameplay improvement.
 - Explain the relevant context and, where the source supports it, what was different before.
 - Make the player impact explicit: what becomes easier, harder, safer, faster or more tactical.
@@ -39,8 +39,9 @@ The voiceover script must inform players, not just tease a mystery:
   or how to adapt. Use a short step-by-step example when the source provides enough detail.
 - Keep useful background that helps the player understand the feature. Remove trivia that does not
   help the player make a better decision.
-- Write in lively, natural British English with a brisk, confident presenter cadence. Use contractions
-  and a little personality, but keep the information clear and direct.
+- Write in lively, natural British English with a relaxed, spontaneous radio-presenter cadence.
+  Use contractions, varied emphasis and a little playful personality without forced slang or imitation
+  of any specific presenter or public figure.
 - Do not stack rhetorical questions. Ask no questions in the body and use at most one brief closing
   question, only when it genuinely adds value.
 - Use short punchy lines for key changes and fuller sentences for useful explanation. Avoid filler,
@@ -64,8 +65,11 @@ Return one valid JSON object with this exact top-level shape:
       "clip_angle": "The clearest short-video angle",
       "series": "Things You Missed in GTA VI | One Minute in Vice City | GTA VI Mythbusters | NPC Behaviour of the Day",
       "hook": "A curiosity-driven opening hook, around 8-14 spoken words",
-      "script": "A complete 165-190 word player-focused voiceover (about 66-76 seconds at 150 wpm). Explain the Rockstar change, its effect on the player and a practical grounded tactic. Start with the exact hook above.",
+      "script": "A complete 200-225 word player-focused voiceover of at least about 70 seconds. Explain the Rockstar change, its effect on the player and a practical grounded tactic. Start with the exact hook above.",
       "visual_notes": "What footage, screenshot, HUD or source visual could support the narration",
+      "caption": "A short, punchy Instagram Reel caption or opening line. Do not include hashtags.",
+      "description": "A natural 2-4 sentence post description that explains the discovery, its player impact and a relevant call to action. Preserve uncertainty and source status.",
+      "mentions": ["@verified_handle"],
       "hashtags": ["#GTAVI", "#GTA6"],
       "novelty_score": 1,
       "shareability_score": 1,
@@ -143,9 +147,9 @@ ARTICLE TEXT:
         self,
         discovery: dict[str, Any],
         target_seconds: int = 70,
-        tone: str = "brisk, confident, upbeat British-English gaming presenter",
-    ) -> dict[str, str]:
-        """Generate an informative, gameplay-first voiceover with a practical player takeaway."""
+        tone: str = "lively, relaxed, playful British female radio-presenter energy",
+    ) -> dict[str, Any]:
+        """Generate a long gameplay-first voiceover and its publishing copy."""
         from gta_researcher.speech import (
             MIN_VOICEOVER_WORDS,
             VOICEOVER_WORDS_PER_MINUTE,
@@ -169,6 +173,10 @@ SOURCE TYPE: {discovery.get('evidence_type', 'not classified')}
 SOURCE QUOTE: {discovery.get('evidence_quote', '')}
 SOURCE URL: {discovery.get('source_url', '')}
 VISUAL NOTES: {discovery.get('visual_notes', '')}
+EXISTING CAPTION: {discovery.get('caption', '')}
+EXISTING DESCRIPTION: {discovery.get('description', '')}
+EXISTING MENTIONS: {discovery.get('mentions', [])}
+EXISTING HASHTAGS: {discovery.get('hashtags', [])}
 
 Target duration: at least {target_seconds} seconds.
 Required length: {minimum_words}-{maximum_words} spoken words.
@@ -195,13 +203,20 @@ FACTUAL RULES:
 - Use additional context only when it helps explain the change or make a better player decision.
 
 DELIVERY:
-- Write brisk, natural British English. Sound like a confident, upbeat gaming presenter speaking directly to a player.
-- Keep energy high, but prioritise clear instructions and information over hype.
-- Use contractions and occasional personality. Avoid forced slang and stiff newsreader phrasing.
-- Use varied sentence lengths and clear transitions so the narration remains easy to follow at a quicker pace.
+- Write natural, lively British English in the style of a relaxed, spontaneous radio presenter.
+- Keep the energy playful and confident, but do not sound like a formal newsreader or an exaggerated announcer.
+- Use contractions, varied sentence lengths, occasional dry humour and conversational transitions.
+- Do not imitate or reproduce any specific presenter's or public figure's voice.
 - No rhetorical questions in the body. Maximum one brief closing question.
 - The script starts with the exact hook returned in the hook field.
-- Keep it full and informative, not padded or repetitive.
+- Keep the full script useful and informative, not padded or repetitive.
+
+SOCIAL PUBLISHING COPY:
+- caption: one punchy first-line caption, ideally under 120 characters. No hashtags.
+- description: 2-4 natural sentences explaining the detail and why players should care. Include a simple engagement CTA only when it fits.
+- mentions: return only real public @handles that are directly relevant and confidently known from the source or official context. Never invent handles. Return an empty array when uncertain.
+- hashtags: return 4-8 relevant GTA VI hashtags. Avoid unrelated or spammy tags.
+- Keep rumours, leaks and unconfirmed reports clearly labelled in the description as well as the script.
 
 Return JSON only:
 {{
@@ -209,6 +224,10 @@ Return JSON only:
   "script": "Complete {minimum_words}-{maximum_words} word voiceover beginning with the exact hook",
   "player_takeaway": "One or two clear, practical sentences for the player",
   "visual_notes": "Specific gameplay visuals that demonstrate the change and each practical point",
+  "caption": "Short Instagram Reel caption, no hashtags",
+  "description": "2-4 sentence Instagram post description with a suitable CTA",
+  "mentions": ["@verified_handle"],
+  "hashtags": ["#GTAVI", "#GTA6"],
   "ending_question": "One optional short closing question, or an empty string"
 }}
 """.strip()
@@ -229,12 +248,42 @@ Return JSON only:
                 ],
                 temperature=0.5,
                 reasoning_effort="low" if self.model == "openai/gpt-oss-20b" else None,
-                max_completion_tokens=2600,
+                max_completion_tokens=3400,
                 response_format={"type": "json_object"},
             )
             return _parse_json_object(completion.choices[0].message.content or "{}")
 
-        def prepare(payload: dict[str, Any]) -> tuple[str, str, str, str]:
+        def normalize_mentions(value: Any) -> list[str]:
+            if isinstance(value, str):
+                candidates = value.split()
+            elif isinstance(value, list):
+                candidates = value
+            else:
+                candidates = []
+            handles: list[str] = []
+            for candidate in candidates:
+                handle = str(candidate).strip().rstrip(",;")
+                if re.fullmatch(r"@[A-Za-z0-9._]{1,30}", handle) and handle not in handles:
+                    handles.append(handle)
+                if len(handles) >= 8:
+                    break
+            return handles
+
+        def normalize_hashtags(value: Any) -> list[str]:
+            if not isinstance(value, list):
+                return list(discovery.get("hashtags", []))[:12]
+            tags: list[str] = []
+            for candidate in value:
+                tag = str(candidate).strip()
+                if tag and not tag.startswith("#"):
+                    tag = f"#{tag}"
+                if re.fullmatch(r"#[A-Za-z0-9_]{1,40}", tag) and tag not in tags:
+                    tags.append(tag)
+                if len(tags) >= 12:
+                    break
+            return tags
+
+        def prepare(payload: dict[str, Any]) -> tuple[str, str, str, str, str, str, list[str], list[str]]:
             hook = str(payload.get("hook", "")).strip()
             script = str(payload.get("script", "")).strip()
             ending = str(payload.get("ending_question", "")).strip()
@@ -245,10 +294,26 @@ Return JSON only:
                 payload.get("player_takeaway") or discovery.get("player_takeaway") or ""
             ).strip()
             visual_notes = str(payload.get("visual_notes", "")).strip()
-            return hook, script, visual_notes, player_takeaway
+            caption = str(payload.get("caption") or discovery.get("caption") or "").strip()
+            description = str(
+                payload.get("description") or discovery.get("description") or ""
+            ).strip()
+            mentions = normalize_mentions(
+                payload.get("mentions", discovery.get("mentions", []))
+            )
+            hashtags = normalize_hashtags(
+                payload.get("hashtags", discovery.get("hashtags", []))
+            )
+            return (
+                hook, script, visual_notes, player_takeaway, caption,
+                description, mentions, hashtags,
+            )
 
         payload = request_script(prompt)
-        hook, script, visual_notes, player_takeaway = prepare(payload)
+        (
+            hook, script, visual_notes, player_takeaway, caption,
+            description, mentions, hashtags,
+        ) = prepare(payload)
 
         if not hook:
             raise ValueError("Groq did not return an opening hook. Regenerate the script and try again.")
@@ -296,7 +361,10 @@ Return JSON only:
 }}
 """.strip()
             payload = request_script(rewrite_prompt)
-            hook, script, visual_notes, player_takeaway = prepare(payload)
+            (
+                hook, script, visual_notes, player_takeaway, caption,
+                description, mentions, hashtags,
+            ) = prepare(payload)
             current_words = count_words(script)
 
         if not hook:
@@ -316,4 +384,8 @@ Return JSON only:
             "script": script,
             "player_takeaway": player_takeaway,
             "visual_notes": visual_notes,
+            "caption": caption,
+            "description": description,
+            "mentions": mentions,
+            "hashtags": hashtags,
         }
