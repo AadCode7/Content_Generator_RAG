@@ -681,8 +681,8 @@ with tabs[3]:
                     use_container_width=True,
                     disabled=script_words < MIN_VOICEOVER_WORDS,
                     help=(
-                        "Regenerate the script first. At least 150 words are needed for "
-                        "a one-minute narration."
+                        "Regenerate the script first. At least 180 words are needed for "
+                        "a one-minute narration at the configured speaking pace."
                     ),
                 ):
                     try:
