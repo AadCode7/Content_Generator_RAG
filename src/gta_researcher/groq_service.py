@@ -30,6 +30,14 @@ If the source is speculation or a rumour, label it clearly. Never present it as 
 When the source does not support a practical gameplay tip, say so in player_takeaway and explain
 what players should watch for rather than manufacturing advice.
 
+For every discovery, also create the publishing assets:
+- caption: a punchy first line for an Instagram Reel, ideally under 120 characters, without hashtags;
+- description: 2-4 natural sentences explaining the discovery, player impact and a relevant CTA;
+- mentions: only real public @handles that are confidently known and directly relevant. Never guess;
+  return an empty array when uncertain;
+- hashtags: 4-8 relevant GTA VI hashtags, without unrelated or spam tags.
+Make the description preserve the source's status. Label rumours, leaks and community findings clearly.
+
 The voiceover script must inform players, not just tease a mystery:
 - Write 200-225 spoken words, targeting at least 70 seconds at a brisk delivery pace.
 - Start with a strong hook that names the Rockstar change or the gameplay improvement.
