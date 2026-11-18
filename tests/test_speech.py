@@ -21,7 +21,7 @@ from gta_researcher.speech import (
 class SpeechTests(unittest.TestCase):
     def test_default_voice_is_conversational_radio_presenter(self):
         self.assertEqual(DEFAULT_VOICE, "en-GB-LibbyNeural")
-        self.assertEqual(DEFAULT_RATE, "+7%")
+        self.assertEqual(DEFAULT_RATE, "+8%")
         self.assertEqual(DEFAULT_PITCH, "-1Hz")
         self.assertEqual(
             VOICE_PROFILE_NAME,
