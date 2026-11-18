@@ -74,6 +74,9 @@ class ResearchStore:
                     hook TEXT NOT NULL DEFAULT '',
                     script TEXT NOT NULL DEFAULT '',
                     visual_notes TEXT NOT NULL DEFAULT '',
+                    caption TEXT NOT NULL DEFAULT '',
+                    description TEXT NOT NULL DEFAULT '',
+                    mentions_json TEXT NOT NULL DEFAULT '[]',
                     hashtags_json TEXT NOT NULL DEFAULT '[]',
                     novelty_score INTEGER NOT NULL DEFAULT 5,
                     shareability_score INTEGER NOT NULL DEFAULT 5,
@@ -95,10 +98,17 @@ class ResearchStore:
                 str(row["name"])
                 for row in connection.execute("PRAGMA table_info(discoveries)").fetchall()
             }
-            if "player_takeaway" not in discovery_columns:
-                connection.execute(
-                    "ALTER TABLE discoveries ADD COLUMN player_takeaway TEXT NOT NULL DEFAULT ''"
-                )
+            upgrade_columns = {
+                "player_takeaway": "TEXT NOT NULL DEFAULT ''",
+                "caption": "TEXT NOT NULL DEFAULT ''",
+                "description": "TEXT NOT NULL DEFAULT ''",
+                "mentions_json": "TEXT NOT NULL DEFAULT '[]'",
+            }
+            for column_name, column_definition in upgrade_columns.items():
+                if column_name not in discovery_columns:
+                    connection.execute(
+                        f"ALTER TABLE discoveries ADD COLUMN {column_name} {column_definition}"
+                    )
 
     def seed_default_sources(self) -> None:
         for source in DEFAULT_SOURCES:
@@ -249,6 +259,8 @@ class ResearchStore:
             1 if item.get("evidence_supported") else 0, item.get("why_interesting", ""),
             item.get("clip_angle", ""), item.get("series", "Things You Missed in GTA VI"),
             item.get("hook", ""), item.get("script", ""), item.get("visual_notes", ""),
+            item.get("caption", ""), item.get("description", ""),
+            json.dumps(item.get("mentions", []), ensure_ascii=False),
             json.dumps(item.get("hashtags", []), ensure_ascii=False),
             item.get("novelty_score", 5), item.get("shareability_score", 5),
             item.get("visual_potential_score", 5), item.get("confidence", 50),
@@ -260,10 +272,10 @@ class ResearchStore:
                 INSERT INTO discoveries (
                     article_id, fingerprint, title, category, claim, explanation,
                     player_takeaway, evidence_quote, evidence_type, evidence_supported, why_interesting,
-                    clip_angle, series, hook, script, visual_notes, hashtags_json,
-                    novelty_score, shareability_score, visual_potential_score,
-                    confidence, overall_score, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    clip_angle, series, hook, script, visual_notes, caption, description,
+                    mentions_json, hashtags_json, novelty_score, shareability_score,
+                    visual_potential_score, confidence, overall_score, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -293,6 +305,10 @@ class ResearchStore:
                     item["hashtags"] = json.loads(item.pop("hashtags_json", "[]"))
                 except (TypeError, json.JSONDecodeError):
                     item["hashtags"] = []
+                try:
+                    item["mentions"] = json.loads(item.pop("mentions_json", "[]"))
+                except (TypeError, json.JSONDecodeError):
+                    item["mentions"] = []
                 result.append(item)
             return result
 
@@ -337,6 +353,54 @@ class ResearchStore:
                     WHERE id = ?
                     """,
                     (hook, script, visual_notes, player_takeaway[:2500], utc_now(), discovery_id),
+                )
+
+    def update_discovery_publish_copy(
+        self,
+        discovery_id: int,
+        caption: str,
+        description: str,
+        mentions: list[str],
+        hashtags: list[str] | None = None,
+    ) -> None:
+        """Save editable social publishing copy without changing the voiceover."""
+        clean_mentions = [
+            str(handle).strip()
+            for handle in mentions
+            if str(handle).strip().startswith("@")
+        ][:8]
+        with self.connect() as connection:
+            if hashtags is None:
+                connection.execute(
+                    """
+                    UPDATE discoveries
+                    SET caption = ?, description = ?, mentions_json = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        caption[:500],
+                        description[:3000],
+                        json.dumps(clean_mentions, ensure_ascii=False),
+                        utc_now(),
+                        discovery_id,
+                    ),
+                )
+            else:
+                connection.execute(
+                    """
+                    UPDATE discoveries
+                    SET caption = ?, description = ?, mentions_json = ?,
+                        hashtags_json = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        caption[:500],
+                        description[:3000],
+                        json.dumps(clean_mentions, ensure_ascii=False),
+                        json.dumps(hashtags[:12], ensure_ascii=False),
+                        utc_now(),
+                        discovery_id,
+                    ),
                 )
 
     def dashboard_counts(self) -> dict[str, int]:
