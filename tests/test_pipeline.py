@@ -14,6 +14,9 @@ class FakeResearcher:
             "claim": "The article describes a gameplay interaction.",
             "explanation": "A plain-language explanation.",
             "player_takeaway": "Watch the enemy's position before choosing your route.",
+            "caption": "This small detail could change your next encounter.",
+            "description": "A reported gameplay detail worth watching. Would you use this approach?",
+            "mentions": ["@rockstargames"],
             "evidence_type": "independently_reported",
             "confidence": 80,
             "why_interesting": "It could make a useful short video.",
@@ -59,6 +62,15 @@ class PipelineTests(unittest.TestCase):
             discoveries[0]["player_takeaway"],
             "Watch the enemy's position before choosing your route.",
         )
+        self.assertEqual(
+            discoveries[0]["caption"],
+            "This small detail could change your next encounter.",
+        )
+        self.assertEqual(
+            discoveries[0]["description"],
+            "A reported gameplay detail worth watching. Would you use this approach?",
+        )
+        self.assertEqual(discoveries[0]["mentions"], ["@rockstargames"])
         self.assertTrue(
             discoveries[0]["script"].startswith(discoveries[0]["hook"]),
             "The opening hook must be part of the spoken voiceover.",
