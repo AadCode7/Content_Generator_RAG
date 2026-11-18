@@ -9,7 +9,7 @@ import wave
 from typing import Any
 
 DEFAULT_VOICE = "en-GB-LibbyNeural"
-DEFAULT_RATE = "+7%"
+DEFAULT_RATE = "+8%"
 DEFAULT_PITCH = "-1Hz"
 VOICE_PROFILE_NAME = "Conversational British female radio voice"
 VOICE_PROFILE_DESCRIPTION = (
