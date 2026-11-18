@@ -8,17 +8,23 @@ import re
 import wave
 from typing import Any
 
-DEFAULT_VOICE = "en-GB-SoniaNeural"
-DEFAULT_RATE = "+10%"
-DEFAULT_PITCH = "+1Hz"
-VOICE_PROFILE_NAME = "Fast-paced British gaming presenter"
+DEFAULT_VOICE = "en-GB-LibbyNeural"
+DEFAULT_RATE = "+7%"
+DEFAULT_PITCH = "-1Hz"
+VOICE_PROFILE_NAME = "Conversational British female radio voice"
 VOICE_PROFILE_DESCRIPTION = (
-    "British English female voice with a brisk, lively presenter cadence, clear articulation, "
-    "confident delivery and a lightly lifted pitch."
+    "A distinct British female neural voice with relaxed, playful radio-presenter energy, "
+    "natural phrasing and a slightly quicker delivery. It is not a recreation of a specific person."
 )
+VOICE_OPTIONS = {
+    "Libby · British English": "en-GB-LibbyNeural",
+    "Maisie · British English": "en-GB-MaisieNeural",
+    "Jenny · US English": "en-US-JennyNeural",
+    "Ava · US English": "en-US-AvaNeural",
+}
 SAMPLE_RATE = 24_000
-MIN_VOICEOVER_WORDS = 150
-VOICEOVER_WORDS_PER_MINUTE = 150
+MIN_VOICEOVER_WORDS = 180
+VOICEOVER_WORDS_PER_MINUTE = 175
 
 
 def count_words(text: str) -> int:
@@ -40,7 +46,7 @@ def compose_voiceover_text(hook: str, script: str) -> str:
 
 
 def estimate_duration_seconds(text: str) -> int:
-    """Estimate narration duration at the configured 150 words per minute."""
+    """Estimate narration duration at the configured brisk speaking pace."""
     return round(count_words(text) * 60 / VOICEOVER_WORDS_PER_MINUTE)
 
 
@@ -98,7 +104,7 @@ def generate_voiceover_wav(
     rate: str = DEFAULT_RATE,
     pitch: str = DEFAULT_PITCH,
 ) -> bytes:
-    """Generate an energetic British female presenter voiceover as WAV audio."""
+    """Generate a lively, conversational female presenter voiceover as WAV audio."""
     narration = (text or "").strip()
     if not narration:
         raise ValueError("Add a voiceover script before generating audio.")
