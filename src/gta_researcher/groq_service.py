@@ -271,7 +271,8 @@ Return JSON only:
 
         def normalize_hashtags(value: Any) -> list[str]:
             if not isinstance(value, list):
-                return list(discovery.get("hashtags", []))[:12]
+                fallback = discovery.get("hashtags", [])
+                return list(fallback)[:12] if isinstance(fallback, list) else []
             tags: list[str] = []
             for candidate in value:
                 tag = str(candidate).strip()
@@ -351,12 +352,28 @@ PREVIOUS HOOK:
 PREVIOUS SCRIPT:
 {script}
 
+PREVIOUS CAPTION:
+{caption}
+
+PREVIOUS DESCRIPTION:
+{description}
+
+PREVIOUS MENTIONS:
+{mentions}
+
+PREVIOUS HASHTAGS:
+{hashtags}
+
 Return JSON only:
 {{
   "hook": "Keep the opening line or improve it without changing its factual meaning",
   "script": "Complete {minimum_words}-{maximum_words} word player-focused voiceover starting with the exact hook",
   "player_takeaway": "One or two practical sentences grounded in the source",
   "visual_notes": "Gameplay visuals aligned to the explanation and player tips",
+  "caption": "Short Instagram Reel caption, no hashtags",
+  "description": "2-4 sentence Instagram post description with a suitable CTA",
+  "mentions": ["@verified_handle"],
+  "hashtags": ["#GTAVI", "#GTA6"],
   "ending_question": "One optional short final question, or an empty string"
 }}
 """.strip()
