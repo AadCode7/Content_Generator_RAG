@@ -77,7 +77,7 @@ Return one valid JSON object with this exact top-level shape:
       "visual_notes": "What footage, screenshot, HUD or source visual could support the narration",
       "caption": "A short, punchy Instagram Reel caption or opening line. Do not include hashtags.",
       "description": "A natural 2-4 sentence post description that explains the discovery, its player impact and a relevant call to action. Preserve uncertainty and source status.",
-      "mentions": ["@verified_handle"],
+      "mentions": [],
       "hashtags": ["#GTAVI", "#GTA6"],
       "novelty_score": 1,
       "shareability_score": 1,
@@ -234,7 +234,7 @@ Return JSON only:
   "visual_notes": "Specific gameplay visuals that demonstrate the change and each practical point",
   "caption": "Short Instagram Reel caption, no hashtags",
   "description": "2-4 sentence Instagram post description with a suitable CTA",
-  "mentions": ["@verified_handle"],
+  "mentions": [],
   "hashtags": ["#GTAVI", "#GTA6"],
   "ending_question": "One optional short closing question, or an empty string"
 }}
@@ -380,7 +380,7 @@ Return JSON only:
   "visual_notes": "Gameplay visuals aligned to the explanation and player tips",
   "caption": "Short Instagram Reel caption, no hashtags",
   "description": "2-4 sentence Instagram post description with a suitable CTA",
-  "mentions": ["@verified_handle"],
+  "mentions": [],
   "hashtags": ["#GTAVI", "#GTA6"],
   "ending_question": "One optional short final question, or an empty string"
 }}
